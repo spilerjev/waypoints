@@ -1,0 +1,8 @@
+# Personal documents — not part of the app, never committed
+journal/
+trips/
+Travel planner/
+
+# OS / editor cruft
+.DS_Store
+.claude/
