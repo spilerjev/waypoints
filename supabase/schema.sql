@@ -166,6 +166,28 @@ create policy "Delete your own entries" on journal_entries
   for delete using (user_id = auth.uid());
 
 
+-- ── DATA API PERMISSIONS ────────────────────────────────────────────────────
+-- Supabase has a project setting, "Automatically expose new tables", that
+-- decides whether tables get privileges for the API roles by default. Granting
+-- explicitly here means this schema works whichever way that switch is set,
+-- rather than silently returning "permission denied" on every query.
+--
+-- These grants only decide who may attempt a query. The row-level security
+-- above is what decides which rows come back — and `anon` is deliberately given
+-- nothing, because every policy here requires a signed-in auth.uid().
+
+grant usage on schema public to anon, authenticated;
+
+grant select, insert, update, delete
+  on table profiles, trips, trip_members, journal_entries
+  to authenticated;
+
+grant execute on function
+  public.is_trip_member(text),
+  public.is_trip_owner(text)
+  to authenticated;
+
+
 -- ── TRIGGERS ────────────────────────────────────────────────────────────────
 
 -- Every new account gets an empty profile row; the app prompts for a username.
@@ -292,3 +314,13 @@ language sql security definer stable set search_path = public as $$
   where j.trip_id = p_trip_id and public.is_trip_member(p_trip_id)
   order by j.created_at desc, j.id desc;
 $$;
+
+
+grant execute on function
+  public.my_profile(),
+  public.set_username(text),
+  public.add_trip_member(text, text),
+  public.trip_roster(text),
+  public.remove_trip_member(text, uuid),
+  public.trip_journal(text)
+  to authenticated;
