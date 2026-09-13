@@ -42,31 +42,41 @@ A trip is imported the **first time** the app sees its `id`. After that your edi
 
 You can also add trips through the UI (**+ Log a trip**) — those get the logbook fields, and you can fill in the planner fields by editing the file or the database.
 
-## Syncing across devices (optional)
+## Accounts and sharing a trip
 
-Everything above works without any of this. Connect Supabase only if you want the same trips on your phone and your laptop.
+Without Supabase, trips live in one browser and only you see them. Connect it and you get accounts, syncing, and trips shared with the people you're actually travelling with.
 
-### 1. Create a Supabase project
+**How sharing works.** Everyone picks a **username** the first time they sign in. To share a trip, its owner types the other person's username — no emails exchanged, nothing to accept. From then on both of you see the same trip, edit the same bookings, and write into the same journal, with each entry showing who wrote it. Only the owner can add or remove travellers; companions can edit everything else and can remove themselves.
 
-1. Go to [supabase.com](https://supabase.com) → **New project**. Free tier is plenty.
-2. Once it's created, open **SQL Editor** → **New query**, paste in the contents of [supabase/schema.sql](supabase/schema.sql), and run it. This creates the `trips` and `journal_entries` tables with row-level security, so each signed-in user only ever sees their own rows.
-3. Go to **Authentication → Providers** and make sure **Email** is enabled (it is by default). The app signs people in with a passwordless magic link — no separate password to manage.
-4. Go to **Settings → API**. You need two values from this page:
-   - **Project URL**
-   - **anon public** key (not the `service_role` key — that one must never go in client-side code)
+### 1. Create the Supabase project
 
-### 2. Connect the app to your project
+1. [supabase.com](https://supabase.com) → **New project**. The free tier is plenty. Save the database password somewhere.
+2. **SQL Editor → New query** → paste all of [supabase/schema.sql](supabase/schema.sql) → **Run**. This creates `profiles`, `trips`, `trip_members` and `journal_entries`, locks them down with row-level security, and adds the functions the app calls. It's safe to re-run.
+3. **Authentication → Providers** → make sure **Email** is on. Sign-in is a passwordless magic link.
+4. **Authentication → URL Configuration** → set **Site URL** to wherever the app is served, and add every other address you'll open it from to **Redirect URLs**. If you skip this, the magic link will bounce you to the wrong place or refuse outright. Add all of these that apply:
+   - your live URL, e.g. `https://<username>.github.io/waypoints/app/waypoints.html`
+   - `http://localhost:8991/app/waypoints.html` if you also run it locally
+5. **Settings → API** → copy the **Project URL** and the **anon public** key. Not the `service_role` key — that one bypasses row-level security and must never appear in client code.
 
-Open `app/waypoints.html`, find this near the top of the `<script>` block:
+### 2. Point the app at it
+
+In `app/waypoints.html`, near the top of the `<script>` block:
 
 ```js
 var SUPABASE_URL = 'YOUR_SUPABASE_URL';
 var SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 ```
 
-Replace both placeholders with the values from the previous step. That's it — the app detects a real URL automatically and switches from "not configured" to fully live.
+Replace both. The app detects a real URL and switches itself on.
 
-*(The anon key is meant to be public — Supabase's security model relies on the row-level security policies from the schema, not on hiding this key. Never put the `service_role` key here.)*
+*(The anon key is designed to be public and is fine in a public repo — Supabase's security model rests on the row-level security policies in the schema, not on hiding this key.)*
+
+### 3. Get everyone on the trip
+
+1. **You:** open the app, **My Trips**, enter your email, click the magic link, pick your username.
+2. Open it **from the copy of the app that has your `my-trips.local.js`** — signing in there pushes those trips up to your account. After that they're in the database and reachable from anywhere.
+3. **Them:** open the app, sign in with their own email, pick their own username, tell you what it is.
+4. **You:** open the trip → **Overview** → **Travelling together** → type their username → **Add traveller**. It shows up for them immediately.
 
 ## Run it locally
 

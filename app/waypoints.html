@@ -419,6 +419,24 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
 .fl-route{font-weight:600}
 .plan-sub{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:1.6rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--border2)}
 .plan-sub:first-child{margin-top:0;padding-top:0;border-top:none}
+
+/* ── TRIP PLANNER: WHO'S ON THE TRIP ── */
+.roster{margin-top:1.6rem;padding-top:1.1rem;border-top:1px solid var(--border2)}
+.roster-chips{display:flex;gap:.45rem;flex-wrap:wrap;margin:.6rem 0 .2rem}
+.roster-chip{display:inline-flex;align-items:center;gap:.45rem;background:var(--s3);border:1px solid var(--border);border-radius:999px;padding:.3rem .7rem;font-family:'IBM Plex Mono',monospace;font-size:.68rem}
+.roster-chip b{font-weight:600;color:var(--text)}
+.roster-chip .r-role{color:var(--muted);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase}
+.roster-chip .r-you{color:var(--accent)}
+.roster-chip button{background:none;border:none;color:var(--faint);cursor:pointer;font-size:.8rem;line-height:1;padding:0 0 0 .1rem}
+.roster-chip button:hover{color:var(--bad)}
+.roster-add{display:flex;gap:.4rem;align-items:center;margin-top:.7rem;flex-wrap:wrap}
+.roster-add input{padding:.42rem .65rem;border-radius:8px;border:1px solid var(--border2);background:var(--s2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.72rem;width:150px}
+.roster-add input:focus{outline:none;border-color:var(--accent)}
+.roster-add .btn{padding:.42rem .9rem;font-size:.66rem}
+.roster-msg{font-family:'IBM Plex Mono',monospace;font-size:.62rem;margin-top:.5rem;min-height:1em}
+.roster-msg.err{color:var(--bad)}
+.roster-msg.ok{color:var(--good)}
+.journal-author{color:var(--muted);font-weight:400}
 @media(max-width:600px){
   .itin-day.today{margin:0}
   .bk-price{font-size:.72rem}
@@ -609,6 +627,17 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
           <button class="btn primary" onclick="signInWithEmail(document.getElementById('auth-email').value.trim())">Send magic link</button>
         </div>
       </div>
+      <div id="username-form" class="hidden">
+        <div class="section-note" style="margin-bottom:1rem">Pick a username. This is how the people you travel with add you to a trip — they'll never need your email.</div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="uname-input" placeholder="leon" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-actions" style="justify-content:flex-start">
+          <button class="btn primary" id="uname-save">Claim it</button>
+          <button class="btn" onclick="signOut()">Sign out</button>
+        </div>
+      </div>
       <div class="save-status" id="auth-status" style="margin-top:.8rem"></div>
     </div>
   </div>
@@ -672,6 +701,7 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
         <p id="td-summary" style="font-size:.9rem;line-height:1.7;margin-bottom:1.2rem"></p>
         <div id="td-legs"></div>
         <ul class="hl-list" id="td-highlights"></ul>
+        <div id="td-roster"></div>
       </div>
       <div class="mpanel" data-tpanel="itinerary">
         <div id="td-itinerary"></div>
@@ -1585,17 +1615,25 @@ var sb = (SUPABASE_URL.indexOf('YOUR_') !== 0 && typeof window.supabase !== 'und
 
 /* ---------- auth ---------- */
 var currentUser = null;
+var currentProfile = null;   // {id, username} — null until signed in and loaded
+
+async function loadProfile(){
+  currentProfile = currentUser ? await Store.myProfile() : null;
+}
 
 async function initAuth(){
   if (!sb) { renderAuthGate(); renderTripsAll(); return; }
   var res = await sb.auth.getSession();
   currentUser = res.data.session ? res.data.session.user : null;
-  sb.auth.onAuthStateChange(function(event, session){
+  await loadProfile();
+  sb.auth.onAuthStateChange(async function(event, session){
     currentUser = session ? session.user : null;
+    await loadProfile();
     renderAuthGate();
-    if (currentUser) renderTripsAll();
+    if (currentUser && currentProfile && currentProfile.username) renderTripsAll();
   });
   renderAuthGate();
+  if (currentUser && currentProfile && currentProfile.username) renderTripsAll();
 }
 
 async function signInWithEmail(email){
@@ -1628,16 +1666,44 @@ function renderAuthGate(){
     return;
   }
   if (out) out.classList.remove('hidden');
-  if (note) note.textContent = '';
-  if (currentUser) {
-    gate.classList.add('hidden');
-    content.classList.remove('hidden');
-  } else {
+  var emailForm = document.getElementById('auth-form');
+  var nameForm = document.getElementById('username-form');
+
+  // Signed out → magic link. Signed in but nameless → claim a username, since
+  // that's what a companion needs to add you. Both done → the app.
+  if (!currentUser) {
     gate.classList.remove('hidden');
     content.classList.add('hidden');
-    document.getElementById('auth-form').classList.remove('hidden');
+    emailForm.classList.remove('hidden');
+    nameForm.classList.add('hidden');
+    if (note) note.textContent = '';
+    return;
   }
+  if (!currentProfile || !currentProfile.username) {
+    gate.classList.remove('hidden');
+    content.classList.add('hidden');
+    emailForm.classList.add('hidden');
+    nameForm.classList.remove('hidden');
+    document.getElementById('auth-status').textContent = '';
+    return;
+  }
+  gate.classList.add('hidden');
+  content.classList.remove('hidden');
+  if (note) note.textContent = 'signed in as @' + currentProfile.username;
 }
+
+document.getElementById('uname-save').addEventListener('click', async function(){
+  var status = document.getElementById('auth-status');
+  var val = document.getElementById('uname-input').value.trim();
+  if (!val) { status.textContent = 'Pick something first.'; return; }
+  status.textContent = 'Claiming…';
+  var res = await Store.setUsername(val);
+  if (!res || !res.ok) { status.textContent = (res && res.error) || 'Could not set that username.'; return; }
+  status.textContent = '';
+  await loadProfile();
+  renderAuthGate();
+  renderTripsAll();
+});
 
 /* ---------- storage layer ----------
    Two backends, same interface:
@@ -1668,7 +1734,8 @@ var Store = (function(){
     var t = {
       id: row.id, name: row.name, emoji: row.emoji, countries: row.countries || [],
       start: row.start_date, end: row.end_date, status: row.status, summary: row.summary,
-      highlights: row.highlights || [], costs: row.costs || {}, createdAt: row.created_at
+      highlights: row.highlights || [], costs: row.costs || {}, createdAt: row.created_at,
+      ownerId: row.user_id
     };
     PLAN_FIELDS.forEach(function(f){ t[f] = plan[f]; });
     return t;
@@ -1677,7 +1744,9 @@ var Store = (function(){
     var plan = {};
     PLAN_FIELDS.forEach(function(f){ if (t[f] !== undefined) plan[f] = t[f]; });
     return {
-      id: id, user_id: currentUser.id, name: t.name, emoji: t.emoji, countries: t.countries,
+      // Keep whoever created the trip as the owner — otherwise a companion
+      // saving a change would quietly take the trip over.
+      id: id, user_id: t.ownerId || currentUser.id, name: t.name, emoji: t.emoji, countries: t.countries,
       start_date: t.start, end_date: t.end, status: t.status, summary: t.summary,
       highlights: t.highlights, costs: t.costs, plan: plan
     };
@@ -1721,9 +1790,43 @@ var Store = (function(){
       var all = lsRead(LS_JOURNAL, {});
       return (all[tripId] || []).slice().sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
     }
-    var res = await sb.from('journal_entries').select('*').eq('trip_id', tripId).order('created_at', {ascending:false});
+    var res = await sb.rpc('trip_journal', { p_trip_id: tripId });
     if (res.error) { console.error(res.error); return []; }
-    return res.data.map(function(r){ return { title: r.title, body: r.body, createdAt: r.created_at }; });
+    return (res.data || []).map(function(r){
+      return { title: r.title, body: r.body, createdAt: r.created_at, author: r.author, isYou: r.is_you };
+    });
+  }
+
+  /* ---- accounts & sharing (cloud only — local mode has no notion of people) ---- */
+  async function myProfile(){
+    if (!cloud()) return null;
+    var res = await sb.rpc('my_profile');
+    if (res.error) { console.error(res.error); return null; }
+    return res.data;
+  }
+  async function setUsername(name){
+    if (!cloud()) return {ok:false, error:'Not signed in.'};
+    var res = await sb.rpc('set_username', { p_username: name });
+    if (res.error) return {ok:false, error: res.error.message};
+    return res.data;
+  }
+  async function roster(tripId){
+    if (!cloud()) return [];
+    var res = await sb.rpc('trip_roster', { p_trip_id: tripId });
+    if (res.error) { console.error(res.error); return []; }
+    return res.data || [];
+  }
+  async function addMember(tripId, username){
+    if (!cloud()) return {ok:false, error:'Sign in to share a trip.'};
+    var res = await sb.rpc('add_trip_member', { p_trip_id: tripId, p_username: username });
+    if (res.error) return {ok:false, error: res.error.message};
+    return res.data;
+  }
+  async function removeMember(tripId, userId){
+    if (!cloud()) return {ok:false, error:'Sign in to share a trip.'};
+    var res = await sb.rpc('remove_trip_member', { p_trip_id: tripId, p_user_id: userId });
+    if (res.error) return {ok:false, error: res.error.message};
+    return res.data;
   }
 
   /* Seed trips from my-trips.local.js — only ones we've never seen before. Once a
@@ -1756,7 +1859,9 @@ var Store = (function(){
   }
 
   return { listTrips: listTrips, saveTrip: saveTrip, addJournalEntry: addJournalEntry,
-           listJournal: listJournal, seedMissing: seedMissing, reseedAll: reseedAll, isCloud: cloud };
+           listJournal: listJournal, seedMissing: seedMissing, reseedAll: reseedAll, isCloud: cloud,
+           myProfile: myProfile, setUsername: setUsername,
+           roster: roster, addMember: addMember, removeMember: removeMember };
 })();
 
 window.waypointsResyncSeeds = async function(){
@@ -2121,6 +2226,67 @@ function renderLogistics(t){
   el.innerHTML = html || '<div class="section-note">No logistics recorded on this trip yet.</div>';
 }
 
+/* ---------- who's on the trip ---------- */
+async function renderRoster(t){
+  var el = document.getElementById('td-roster');
+  if (!el) return;
+  // Sharing needs accounts, and local mode has none.
+  if (!Store.isCloud()) {
+    el.innerHTML = '<div class="roster"><div class="plan-sub" style="margin:0;padding:0;border:none">Travelling together</div>' +
+      '<div class="section-note" style="margin-top:.5rem">Connect Supabase and sign in to share this trip with someone by username.</div></div>';
+    return;
+  }
+  var people = await Store.roster(currentTripId);
+  var youAreOwner = people.some(function(p){ return p.is_you && p.role === 'owner'; });
+  var html = '<div class="roster"><div class="plan-sub" style="margin:0;padding:0;border:none">Travelling together</div><div class="roster-chips">';
+  html += people.map(function(p){
+    var label = p.username ? '@' + esc(p.username) : 'someone (no username yet)';
+    return '<span class="roster-chip">' +
+      '<b class="' + (p.is_you ? 'r-you' : '') + '">' + label + '</b>' +
+      '<span class="r-role">' + esc(p.role) + (p.is_you ? ' · you' : '') + '</span>' +
+      (youAreOwner && !p.is_you
+        ? '<button title="Remove from trip" onclick="removeTraveller(\'' + esc(p.user_id) + '\')">✕</button>'
+        : '') +
+    '</span>';
+  }).join('') + '</div>';
+  if (youAreOwner) {
+    html += '<div class="roster-add">' +
+      '<input type="text" id="roster-uname" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+      '<button class="btn" onclick="addTraveller()">Add traveller</button></div>';
+  } else {
+    html += '<div class="section-note" style="margin-top:.6rem">Shared with you — only the trip owner can add or remove people.</div>';
+  }
+  html += '<div class="roster-msg" id="roster-msg"></div></div>';
+  el.innerHTML = html;
+}
+
+async function addTraveller(){
+  var input = document.getElementById('roster-uname');
+  var msg = document.getElementById('roster-msg');
+  var name = (input.value || '').trim();
+  if (!name) { msg.className = 'roster-msg err'; msg.textContent = 'Type their username first.'; return; }
+  msg.className = 'roster-msg'; msg.textContent = 'Adding…';
+  var res = await Store.addMember(currentTripId, name);
+  if (!res || !res.ok) {
+    msg.className = 'roster-msg err';
+    msg.textContent = (res && res.error) || 'Could not add them.';
+    return;
+  }
+  input.value = '';
+  await renderRoster(trips[currentTripId]);
+  var m = document.getElementById('roster-msg');
+  if (m) { m.className = 'roster-msg ok'; m.textContent = '@' + res.username + ' can now see and edit this trip.'; }
+}
+
+async function removeTraveller(userId){
+  var res = await Store.removeMember(currentTripId, userId);
+  await renderRoster(trips[currentTripId]);
+  if (res && !res.ok) {
+    var m = document.getElementById('roster-msg');
+    if (m) { m.className = 'roster-msg err'; m.textContent = res.error; }
+  }
+}
+
 /* Toggling a booking or an open item writes straight through to the store, so
    ticking things off on the plane survives a reload. */
 async function cycleBooking(bid){
@@ -2156,6 +2322,7 @@ async function openTrip(id){
   renderBookings(t);
   renderTodos(t);
   renderLogistics(t);
+  renderRoster(t);
 
   var costsHtml = '';
   Object.keys(CAT_LABELS).forEach(function(cat){
@@ -2189,7 +2356,8 @@ async function renderJournal(id){
     return;
   }
   el.innerHTML = entries.map(function(e){
-    return '<div class="journal-entry"><div class="journal-date">'+fmtDate(e.createdAt)+'</div>' +
+    var by = e.author ? ' · <span class="journal-author">' + (e.isYou ? 'you' : '@' + esc(e.author)) + '</span>' : '';
+    return '<div class="journal-entry"><div class="journal-date">'+fmtDate(e.createdAt)+by+'</div>' +
       (e.title ? '<div class="journal-title">'+e.title+'</div>' : '') +
       '<div class="journal-body">'+(e.body||'').replace(/</g,'&lt;')+'</div></div>';
   }).join('');
