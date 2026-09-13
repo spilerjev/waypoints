@@ -1621,7 +1621,23 @@ async function loadProfile(){
   currentProfile = currentUser ? await Store.myProfile() : null;
 }
 
+/* A magic link that fails to complete — a redirect URL that isn't on Supabase's
+   allow list, an expired link, a PKCE verifier from another origin — comes back
+   with the reason in the URL and then renders an ordinary signed-out page. That
+   silence is indistinguishable from "never clicked the link", so say it out loud. */
+function showAuthRedirectError(){
+  var fromHash = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  var fromQuery = new URLSearchParams(window.location.search || '');
+  var err = fromHash.get('error_description') || fromHash.get('error') ||
+            fromQuery.get('error_description') || fromQuery.get('error');
+  if (!err) return;
+  var el = document.getElementById('auth-status');
+  if (el) el.textContent = 'Sign-in did not complete: ' + err.replace(/\+/g, ' ');
+  console.warn('Supabase auth redirect error:', err);
+}
+
 async function initAuth(){
+  showAuthRedirectError();
   if (!sb) { renderAuthGate(); renderTripsAll(); return; }
   var res = await sb.auth.getSession();
   currentUser = res.data.session ? res.data.session.user : null;
