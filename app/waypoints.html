@@ -1963,7 +1963,13 @@ function renderPlanHero(t){
     '<div><div class="plan-count">' + esc(ph.val) + '</div><div class="plan-count-lbl">' + esc(ph.lbl) + '</div></div>' +
     '<div class="plan-hero-meta">' +
       nights + ' nights · ' + (t.travellers || 2) + ' travellers<br>' +
-      (t.legs && t.legs.length ? t.legs.length + ' bases · ' : '') +
+      (function(){
+        var sleep = (t.legs || []).filter(function(l){ return !l.dayStop && l.nights; }).length;
+        var stops = (t.legs || []).length - sleep;
+        if (!sleep && !stops) return '';
+        return sleep + (sleep === 1 ? ' base' : ' bases') +
+               (stops ? ' + ' + stops + ' day stop' + (stops === 1 ? '' : 's') : '') + ' · ';
+      })() +
       fmtDate(t.start) + ' → ' + fmtDate(t.end) +
     '</div>';
   if (bs.total) {
@@ -1996,7 +2002,9 @@ function renderLegs(t){
     var mark = l.stayStatus === 'done' ? ' ✅' : (l.stayStatus === 'hold' ? ' ⏳' : '');
     return '<div class="leg-chip">' +
       '<div class="leg-chip-top">' + esc(l.emoji) + ' ' + esc(l.name) + '</div>' +
-      '<div class="leg-chip-sub">' + esc(l.place) + '<br>' + l.nights + (l.nights === 1 ? ' night' : ' nights') + ' · ' + esc(l.price || '') + '</div>' +
+      '<div class="leg-chip-sub">' + esc(l.place) + '<br>' +
+        (l.dayStop || !l.nights ? 'day stop' : l.nights + (l.nights === 1 ? ' night' : ' nights')) +
+        ' · ' + esc(l.price || '') + '</div>' +
       (l.stay ? '<div class="leg-chip-stay">' + stay + mark + '</div>' : '') +
     '</div>';
   }).join('') + '</div>';
@@ -2019,7 +2027,7 @@ function renderItinerary(t){
     var base = legName[d.legId] || (d.legId === 'air' ? 'In transit' : '');
     if (base !== lastLeg) {
       var leg = (t.legs || []).filter(function(l){ return l.id === d.legId; })[0];
-      out += '<div class="itin-sep">' + esc(base) + (leg ? ' · ' + esc(leg.stay) : '') + '</div>';
+      out += '<div class="itin-sep">' + esc(base) + (leg && leg.stay ? ' · ' + esc(leg.stay) : '') + '</div>';
       lastLeg = base;
     }
     var dt = new Date(d.date + 'T00:00:00');
@@ -2103,8 +2111,9 @@ function renderLogistics(t){
   }
   if ((t.legs || []).length) {
     html += '<div class="plan-sub">Where you sleep</div><table class="tr-tbl">' + t.legs.map(function(l){
-      var name = l.url ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="color:var(--sky);text-decoration:underline">' + esc(l.stay) + '</a>' : esc(l.stay);
-      return '<tr><td>' + esc(l.emoji) + ' ' + esc(l.name) + ' — ' + name +
+      var name = !l.stay ? '' :
+        (l.url ? ' — <a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="color:var(--sky);text-decoration:underline">' + esc(l.stay) + '</a>' : ' — ' + esc(l.stay));
+      return '<tr><td>' + esc(l.emoji) + ' ' + esc(l.name) + name +
         (l.note ? '<div class="tr-time">' + esc(l.note) + '</div>' : '') + '</td>' +
         '<td>' + esc(fmtDate(l.start)) + ' → ' + esc(fmtDate(l.end)) + '<br>' + esc(l.price || '') + '</td></tr>';
     }).join('') + '</table>';
