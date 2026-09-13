@@ -14,8 +14,15 @@ create table if not exists trips (
   summary text,
   highlights jsonb default '[]',
   costs jsonb default '{}',
+  -- Everything the planner adds on top of the logbook: legs, itinerary,
+  -- bookings, transfers, todos, alerts, flights, travellers. One jsonb blob so
+  -- the plan can grow without a migration every time.
+  plan jsonb default '{}',
   created_at timestamptz not null default now()
 );
+
+-- If you created this table before the planner existed, this adds the column.
+alter table trips add column if not exists plan jsonb default '{}';
 
 alter table trips enable row level security;
 

@@ -3,6 +3,10 @@ journal/
 trips/
 Travel planner/
 
+# Real trip data (PNRs, booking refs, prices) — loaded by the app at runtime,
+# never committed, because GitHub Pages sites are public even from a private repo
+app/*.local.js
+
 # OS / editor cruft
 .DS_Store
 .claude/

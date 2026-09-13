@@ -6,6 +6,8 @@
 <title>Waypoints</title>
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,500&family=Karla:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Your own trips (git-ignored, optional — the app works fine without it) -->
+<script src="my-trips.local.js" onerror="window.SEED_TRIPS=window.SEED_TRIPS||[]"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 .hidden{display:none !important}
@@ -342,13 +344,93 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
   .trip-card{flex-wrap:wrap}
   .trip-cost{text-align:left;margin-left:3.7rem}
 }
+
+/* ── TRIP PLANNER: COUNTDOWN + LEG STRIP ── */
+.plan-hero{background:var(--s3);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
+.plan-count{font-family:'Spectral',serif;font-weight:600;font-size:2.1rem;line-height:1;font-variant-numeric:tabular-nums}
+.plan-count-lbl{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:.25rem}
+.plan-hero-meta{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted);line-height:1.8}
+.plan-prog{flex:1;min-width:160px}
+.plan-prog-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-top:.4rem}
+.plan-prog-bar span{display:block;height:100%;background:var(--good);transition:width .3s}
+
+.leg-strip{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.3rem}
+.leg-chip{flex:1;min-width:130px;background:var(--s3);border:1px solid var(--border);border-radius:10px;padding:.7rem .85rem}
+.leg-chip-top{display:flex;align-items:center;gap:.4rem;font-family:'Spectral',serif;font-weight:600;font-size:.95rem}
+.leg-chip-sub{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:.25rem;line-height:1.6}
+.leg-chip-stay{font-size:.74rem;margin-top:.4rem;line-height:1.4}
+.leg-chip-stay a{color:var(--sky);text-decoration:underline;text-underline-offset:2px}
+
+/* ── TRIP PLANNER: ALERTS ── */
+.plan-alert{border:1px solid color-mix(in srgb, var(--warn) 40%, transparent);background:color-mix(in srgb, var(--warn) 10%, transparent);border-radius:10px;padding:.8rem 1rem;margin-bottom:.7rem}
+.plan-alert-title{font-family:'IBM Plex Mono',monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);margin-bottom:.35rem}
+.plan-alert-body{font-size:.82rem;line-height:1.6}
+
+/* ── TRIP PLANNER: ITINERARY ── */
+.itin-day{display:flex;gap:.9rem;padding:.9rem 0;border-bottom:1px solid var(--border)}
+.itin-day:last-child{border-bottom:none}
+.itin-day.today{background:color-mix(in srgb, var(--accent) 8%, transparent);border-radius:10px;padding:.9rem .8rem;margin:0 -.8rem}
+.itin-date{flex-shrink:0;width:3.1rem;text-align:center}
+.itin-dow{font-family:'IBM Plex Mono',monospace;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.itin-dnum{font-family:'Spectral',serif;font-weight:600;font-size:1.5rem;line-height:1.1}
+.itin-mon{font-family:'IBM Plex Mono',monospace;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.itin-main{flex:1;min-width:0}
+.itin-title{font-family:'Spectral',serif;font-weight:600;font-size:1rem;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap}
+.itin-base{font-family:'IBM Plex Mono',monospace;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);border:1px solid color-mix(in srgb, var(--accent) 35%, transparent);border-radius:999px;padding:.1rem .45rem}
+.itin-items{list-style:none;margin-top:.45rem;display:flex;flex-direction:column;gap:.28rem}
+.itin-items li{font-size:.82rem;line-height:1.55;padding-left:.95rem;position:relative;color:var(--muted)}
+.itin-items li::before{content:'·';position:absolute;left:.2rem;color:var(--accent);font-weight:700}
+.itin-sep{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:1rem 0 .3rem;border-top:1px solid var(--border2);margin-top:.6rem}
+.itin-sep:first-child{border-top:none;margin-top:0;padding-top:.2rem}
+
+/* ── TRIP PLANNER: BOOKINGS CHECKLIST ── */
+.bk-row{display:flex;gap:.75rem;align-items:flex-start;padding:.75rem 0;border-bottom:1px solid var(--border)}
+.bk-row:last-of-type{border-bottom:none}
+.bk-row:has(+ .bk-group){border-bottom:none}
+.bk-tick{flex-shrink:0;width:1.35rem;height:1.35rem;border-radius:6px;border:1px solid var(--border2);background:var(--s2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.75rem;line-height:1;padding:0;color:var(--muted);transition:all .15s;margin-top:.1rem}
+.bk-tick:hover{border-color:var(--accent)}
+.bk-tick.done{background:var(--good);border-color:var(--good);color:#fff}
+.bk-tick.hold{background:color-mix(in srgb, var(--warn) 25%, transparent);border-color:var(--warn);color:var(--warn)}
+.bk-main{flex:1;min-width:0}
+.bk-title{font-size:.88rem;font-weight:600;line-height:1.4}
+.bk-row.is-done .bk-title{color:var(--muted)}
+.bk-detail{font-size:.74rem;color:var(--faint);line-height:1.6;margin-top:.22rem}
+.bk-detail a{color:var(--sky);text-decoration:underline;text-underline-offset:2px}
+.bk-price{flex-shrink:0;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:.8rem;font-variant-numeric:tabular-nums}
+.bk-price small{display:block;font-size:.56rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:.15rem}
+.bk-group{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:1.1rem 0 .2rem;border-top:1px solid var(--border2);margin-top:.5rem}
+.bk-group:first-child{border-top:none;margin-top:0;padding-top:.2rem}
+
+/* ── TRIP PLANNER: TODOS + TRANSFERS ── */
+.todo-row{display:flex;gap:.6rem;align-items:flex-start;padding:.4rem 0;font-size:.83rem;line-height:1.55}
+.todo-row button{flex-shrink:0;width:1.1rem;height:1.1rem;border-radius:5px;border:1px solid var(--border2);background:var(--s2);cursor:pointer;font-size:.62rem;line-height:1;padding:0;color:var(--muted);margin-top:.18rem}
+.todo-row button.done{background:var(--good);border-color:var(--good);color:#fff}
+.todo-row.is-done span{color:var(--faint);text-decoration:line-through}
+.tr-tbl{width:100%;border-collapse:collapse;font-size:.78rem}
+.tr-tbl td{padding:.45rem .5rem;border-bottom:1px solid var(--border);vertical-align:top}
+.tr-tbl td:first-child{padding-left:0}
+.tr-tbl td:last-child{text-align:right;padding-right:0;font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.tr-tbl tr:last-child td{border-bottom:none}
+.tr-time{font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--muted)}
+.fl-tbl{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:.72rem}
+.fl-tbl td{padding:.4rem .45rem;border-bottom:1px solid var(--border);white-space:nowrap}
+.fl-tbl td:first-child{padding-left:0;color:var(--accent)}
+.fl-tbl tr:last-child td{border-bottom:none}
+.fl-route{font-weight:600}
+.plan-sub{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:1.6rem 0 .6rem;padding-top:1.1rem;border-top:1px solid var(--border2)}
+.plan-sub:first-child{margin-top:0;padding-top:0;border-top:none}
+@media(max-width:600px){
+  .itin-day.today{margin:0}
+  .bk-price{font-size:.72rem}
+}
+
 </style>
 </head>
 <body>
 <header class="hdr">
   <div class="hdr-eye">Waypoints</div>
   <h1>Find Your <em>Perfect</em> Trip</h1>
-  <div class="hdr-sub">87 destinations to explore · your own trip history, logged</div>
+  <div class="hdr-sub">87 destinations to explore · your own trips, planned and logged</div>
   <div class="top-tabs">
     <button class="top-tab on" data-toptab="explore" onclick="setTopTab('explore')">🧭 Explore</button>
     <button class="top-tab" data-toptab="trips" onclick="setTopTab('trips')">📖 My Trips</button>
@@ -534,7 +616,10 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
   <div id="trips-content" class="hidden">
     <div class="map-wrap" style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap">
       <div class="hero-stats" id="hero-stats"></div>
-      <button class="btn" style="margin-bottom:1.4rem" onclick="signOut()">Sign out</button>
+      <div style="margin-bottom:1.4rem;display:flex;align-items:center;gap:.8rem">
+        <div class="section-note" id="store-mode-note"></div>
+        <button class="btn" id="signout-btn" onclick="signOut()">Sign out</button>
+      </div>
     </div>
 
     <div class="map-section" style="padding-top:1rem">
@@ -572,15 +657,31 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
       </div>
       <button class="thd-close" onclick="document.getElementById('trip-overlay').classList.add('hidden')">✕</button>
     </div>
-    <div class="mtabs" style="padding:0 1.6rem;margin-bottom:0;border-bottom:1px solid var(--border)">
+    <div class="mtabs" style="padding:0 1.6rem;margin-bottom:0;border-bottom:1px solid var(--border);overflow-x:auto">
       <button class="mtab on" data-ttab="overview" onclick="setTripTab('overview')">Overview</button>
+      <button class="mtab" data-ttab="itinerary" onclick="setTripTab('itinerary')">Itinerary</button>
+      <button class="mtab" data-ttab="bookings" onclick="setTripTab('bookings')">Bookings</button>
+      <button class="mtab" data-ttab="logistics" onclick="setTripTab('logistics')">Logistics</button>
       <button class="mtab" data-ttab="costs" onclick="setTripTab('costs')">Costs</button>
       <button class="mtab" data-ttab="journal" onclick="setTripTab('journal')">Journal</button>
     </div>
     <div class="modal-body">
       <div class="mpanel on" data-tpanel="overview">
+        <div id="td-hero"></div>
+        <div id="td-alerts"></div>
         <p id="td-summary" style="font-size:.9rem;line-height:1.7;margin-bottom:1.2rem"></p>
+        <div id="td-legs"></div>
         <ul class="hl-list" id="td-highlights"></ul>
+      </div>
+      <div class="mpanel" data-tpanel="itinerary">
+        <div id="td-itinerary"></div>
+      </div>
+      <div class="mpanel" data-tpanel="bookings">
+        <div id="td-bookings"></div>
+        <div id="td-todos"></div>
+      </div>
+      <div class="mpanel" data-tpanel="logistics">
+        <div id="td-logistics"></div>
       </div>
       <div class="mpanel" data-tpanel="costs">
         <div id="td-costs"></div>
@@ -1486,7 +1587,7 @@ var sb = (SUPABASE_URL.indexOf('YOUR_') !== 0 && typeof window.supabase !== 'und
 var currentUser = null;
 
 async function initAuth(){
-  if (!sb) { renderAuthGate(); return; }
+  if (!sb) { renderAuthGate(); renderTripsAll(); return; }
   var res = await sb.auth.getSession();
   currentUser = res.data.session ? res.data.session.user : null;
   sb.auth.onAuthStateChange(function(event, session){
@@ -1514,13 +1615,20 @@ function renderAuthGate(){
   var gate = document.getElementById('auth-gate');
   var content = document.getElementById('trips-content');
   if (!gate || !content) return;
+  var note = document.getElementById('store-mode-note');
+  var out = document.getElementById('signout-btn');
+
+  // No Supabase configured → local mode. The planner still works, it just lives
+  // in this browser rather than in an account.
   if (!sb) {
-    gate.classList.remove('hidden');
-    content.classList.add('hidden');
-    document.getElementById('auth-status').textContent = 'Supabase isn\'t connected yet — trips can\'t be saved until it is.';
-    document.getElementById('auth-form').classList.add('hidden');
+    gate.classList.add('hidden');
+    content.classList.remove('hidden');
+    if (note) note.textContent = 'saved on this device only — connect Supabase to sync';
+    if (out) out.classList.add('hidden');
     return;
   }
+  if (out) out.classList.remove('hidden');
+  if (note) note.textContent = '';
   if (currentUser) {
     gate.classList.add('hidden');
     content.classList.remove('hidden');
@@ -1531,25 +1639,52 @@ function renderAuthGate(){
   }
 }
 
-/* ---------- storage layer (Supabase Postgres, scoped to the signed-in user via RLS) ---------- */
+/* ---------- storage layer ----------
+   Two backends, same interface:
+     · Supabase Postgres when it's configured AND someone is signed in — rows are
+       scoped to that user by RLS, so trips follow you across devices.
+     · localStorage otherwise — the planner works with zero setup, on this device.
+   Everything beyond the flat columns (legs, itinerary, bookings, transfers,
+   todos, alerts, flights) rides along in a single `plan` jsonb column. */
+var PLAN_FIELDS = ['travellers','legs','itinerary','bookings','transfers','todos','alerts','flights'];
+
 var Store = (function(){
+  var LS_TRIPS = 'waypoints.trips.v1';
+  var LS_JOURNAL = 'waypoints.journal.v1';
+
+  function cloud(){ return !!(sb && currentUser); }
+
+  function lsRead(key, fallback){
+    try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
+    catch(e){ return fallback; }
+  }
+  function lsWrite(key, val){
+    try { localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch(e){ console.warn('Could not write to localStorage', e); return false; }
+  }
+
   function rowToTrip(row){
-    return {
+    var plan = row.plan || {};
+    var t = {
       id: row.id, name: row.name, emoji: row.emoji, countries: row.countries || [],
       start: row.start_date, end: row.end_date, status: row.status, summary: row.summary,
       highlights: row.highlights || [], costs: row.costs || {}, createdAt: row.created_at
     };
+    PLAN_FIELDS.forEach(function(f){ t[f] = plan[f]; });
+    return t;
   }
   function tripToRow(id, t){
+    var plan = {};
+    PLAN_FIELDS.forEach(function(f){ if (t[f] !== undefined) plan[f] = t[f]; });
     return {
       id: id, user_id: currentUser.id, name: t.name, emoji: t.emoji, countries: t.countries,
       start_date: t.start, end_date: t.end, status: t.status, summary: t.summary,
-      highlights: t.highlights, costs: t.costs
+      highlights: t.highlights, costs: t.costs, plan: plan
     };
   }
 
   async function listTrips(){
-    if (!sb || !currentUser) return {};
+    if (!cloud()) return lsRead(LS_TRIPS, {});
     var res = await sb.from('trips').select('*').order('start_date', {ascending:false});
     if (res.error) { console.error(res.error); return {}; }
     var out = {};
@@ -1558,13 +1693,23 @@ var Store = (function(){
   }
 
   async function saveTrip(id, data){
-    if (!sb || !currentUser) return;
+    if (!cloud()){
+      var all = lsRead(LS_TRIPS, {});
+      all[id] = data;
+      lsWrite(LS_TRIPS, all);
+      return;
+    }
     var res = await sb.from('trips').upsert(tripToRow(id, data));
     if (res.error) console.error(res.error);
   }
 
   async function addJournalEntry(tripId, entry){
-    if (!sb || !currentUser) return;
+    if (!cloud()){
+      var all = lsRead(LS_JOURNAL, {});
+      (all[tripId] = all[tripId] || []).push(entry);
+      lsWrite(LS_JOURNAL, all);
+      return;
+    }
     var res = await sb.from('journal_entries').insert({
       trip_id: tripId, user_id: currentUser.id, title: entry.title, body: entry.body, created_at: entry.createdAt
     });
@@ -1572,14 +1717,54 @@ var Store = (function(){
   }
 
   async function listJournal(tripId){
-    if (!sb || !currentUser) return [];
+    if (!cloud()){
+      var all = lsRead(LS_JOURNAL, {});
+      return (all[tripId] || []).slice().sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); });
+    }
     var res = await sb.from('journal_entries').select('*').eq('trip_id', tripId).order('created_at', {ascending:false});
     if (res.error) { console.error(res.error); return []; }
     return res.data.map(function(r){ return { title: r.title, body: r.body, createdAt: r.created_at }; });
   }
 
-  return { listTrips: listTrips, saveTrip: saveTrip, addJournalEntry: addJournalEntry, listJournal: listJournal };
+  /* Seed trips from my-trips.local.js — only ones we've never seen before. Once a
+     trip exists in the store your own edits own it, and re-seeding never clobbers them. */
+  async function seedMissing(existing){
+    var seeds = (typeof SEED_TRIPS !== 'undefined' && SEED_TRIPS) ? SEED_TRIPS : [];
+    var added = false;
+    for (var i = 0; i < seeds.length; i++){
+      var t = seeds[i];
+      if (!t || !t.id || existing[t.id]) continue;
+      var copy = JSON.parse(JSON.stringify(t));
+      copy.createdAt = copy.createdAt || new Date().toISOString().slice(0,10);
+      await saveTrip(t.id, copy);
+      existing[t.id] = copy;
+      added = true;
+    }
+    return added;
+  }
+
+  /* Escape hatch: force every trip in my-trips.local.js back over the stored copy.
+     Discards ticked bookings and open items for those trips — that's the point.
+     Call waypointsResyncSeeds() from the console after editing the file. */
+  async function reseedAll(){
+    var seeds = (typeof SEED_TRIPS !== 'undefined' && SEED_TRIPS) ? SEED_TRIPS : [];
+    for (var i = 0; i < seeds.length; i++){
+      if (!seeds[i] || !seeds[i].id) continue;
+      await saveTrip(seeds[i].id, JSON.parse(JSON.stringify(seeds[i])));
+    }
+    return seeds.length;
+  }
+
+  return { listTrips: listTrips, saveTrip: saveTrip, addJournalEntry: addJournalEntry,
+           listJournal: listJournal, seedMissing: seedMissing, reseedAll: reseedAll, isCloud: cloud };
 })();
+
+window.waypointsResyncSeeds = async function(){
+  var n = await Store.reseedAll();
+  await renderTripsAll();
+  console.log('Re-imported ' + n + ' trip(s) from my-trips.local.js — local edits to those trips were discarded.');
+  return n;
+};
 
 /* ---------- country name lookup (subset covering common trip destinations; extend as needed) ---------- */
 var COUNTRY_NAMES = {id:'Indonesia',sg:'Singapore',it:'Italy',si:'Slovenia',hr:'Croatia',at:'Austria',tr:'Turkey',gr:'Greece',es:'Spain',fr:'France',de:'Germany',gb:'United Kingdom',us:'United States',jp:'Japan',th:'Thailand',vn:'Vietnam',pt:'Portugal',nl:'Netherlands',ch:'Switzerland',cz:'Czechia',hu:'Hungary',pl:'Poland',mx:'Mexico',eg:'Egypt',ma:'Morocco',ae:'United Arab Emirates',au:'Australia',nz:'New Zealand',ca:'Canada',br:'Brazil',ar:'Argentina',pe:'Peru',cl:'Chile',is:'Iceland',ie:'Ireland',dk:'Denmark',se:'Sweden',no:'Norway',fi:'Finland',in:'India',cn:'China',kr:'South Korea',my:'Malaysia',ph:'Philippines',kh:'Cambodia',la:'Laos',mm:'Myanmar',lk:'Sri Lanka',mv:'Maldives',ke:'Kenya',za:'South Africa',ru:'Russia',ua:'Ukraine',ro:'Romania',bg:'Bulgaria',rs:'Serbia',me:'Montenegro',al:'Albania',mk:'North Macedonia',ba:'Bosnia and Herzegovina',cy:'Cyprus',il:'Israel',jo:'Jordan',qa:'Qatar',sa:'Saudi Arabia'};
@@ -1656,10 +1841,12 @@ function renderStats(){
   var completed = ids.filter(function(id){ return trips[id].status === 'completed'; });
   var upcoming = ids.filter(function(id){ return trips[id].status === 'upcoming'; })
     .sort(function(a,b){ return trips[a].start.localeCompare(trips[b].start); });
+  // Count money actually spent on every trip, not just finished ones — a trip
+  // you've already paid €2k of flights for has very much been spent on.
   var totalSpent = 0;
-  completed.forEach(function(id){
-    var t = tripTotal(trips[id].costs, 'actual');
-    if (t) totalSpent += t;
+  ids.forEach(function(id){
+    var spent = tripTotal(trips[id].costs, 'actual');
+    if (spent) totalSpent += spent;
   });
 
   var html = '';
@@ -1688,8 +1875,14 @@ function renderLog(){
   list.innerHTML = ids.map(function(id){
     var t = trips[id];
     var total = tripTotal(t.costs, t.status === 'completed' ? 'actual' : 'planned');
-    var cats = ['flights','accommodation','transport','activities','food'];
-    var colors = {flights:'var(--sky)',accommodation:'var(--accent)',transport:'var(--good)',activities:'var(--bad)',food:'var(--faint)'};
+    var bs = bookingStats(t);
+    var ph = '';
+    if (t.status !== 'completed'){
+      var dd = daysBetween(todayISO(), t.start);
+      ph = dd > 0 ? dd + ' days to go' : (todayISO() <= t.end ? 'happening now' : '');
+    }
+    var cats = Object.keys(CAT_LABELS);
+    var colors = CAT_COLORS;
     var sum = 0;
     cats.forEach(function(c){ var v=(t.costs[c]||{})[t.status==='completed'?'actual':'planned']; if(typeof v==='number') sum+=v; });
     var bars = sum ? cats.map(function(c){
@@ -1702,7 +1895,9 @@ function renderLog(){
       '<div class="trip-emoji">'+t.emoji+'</div>' +
       '<div class="trip-main">' +
         '<div class="trip-name">'+t.name+' <span class="status-pill '+t.status+'">'+t.status+'</span></div>' +
-        '<div class="trip-dates">'+fmtDate(t.start)+' — '+fmtDate(t.end)+'</div>' +
+        '<div class="trip-dates">'+fmtDate(t.start)+' — '+fmtDate(t.end)+
+          (bs.total ? ' · '+bs.done+'/'+bs.total+' booked' : '')+
+          (ph && t.status!=='completed' ? ' · '+ph : '')+'</div>' +
         (bars ? '<div class="trip-bar">'+bars+'</div>' : '') +
       '</div>' +
       '<div class="trip-cost">' +
@@ -1717,7 +1912,225 @@ function renderLog(){
 }
 
 /* ---------- trip detail modal ---------- */
-var CAT_LABELS = {flights:'Flights', accommodation:'Accommodation', transport:'Local transport', activities:'Activities & tours', food:'Food & extras'};
+var CAT_LABELS = {flights:'Flights', accommodation:'Accommodation', transport:'Transport & transfers', activities:'Activities & tours', food:'Food & extras', other:'Visa, insurance & admin'};
+var CAT_COLORS = {flights:'var(--sky)', accommodation:'var(--accent)', transport:'var(--good)', activities:'var(--bad)', food:'var(--faint)', other:'var(--border2)'};
+
+/* ---------- trip planner: itinerary, bookings, logistics ---------- */
+var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var BK_NEXT = {todo:'done', done:'hold', hold:'todo'};
+var BK_MARK = {todo:'', done:'✓', hold:'·'};
+
+function esc(str){
+  return String(str === null || str === undefined ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(fromISO, toISO){
+  return Math.round((new Date(toISO+'T00:00:00') - new Date(fromISO+'T00:00:00')) / 86400000);
+}
+
+/* Where the trip sits relative to today, as a headline number + label. */
+function tripPhase(t){
+  var today = todayISO();
+  if (t.status === 'completed' || today > t.end) return {val:'✓', lbl:'Trip complete'};
+  if (today >= t.start) {
+    var day = daysBetween(t.start, today) + 1;
+    var total = daysBetween(t.start, t.end) + 1;
+    return {val:'Day ' + day, lbl:'of ' + total + ' — you\'re there'};
+  }
+  var d = daysBetween(today, t.start);
+  return {val:d, lbl:d === 1 ? 'Day to go' : 'Days to go'};
+}
+
+function bookingStats(t){
+  var bks = t.bookings || [];
+  var done = 0, open = 0, paid = 0;
+  bks.forEach(function(b){
+    if (b.status === 'done') { done++; if (typeof b.price === 'number') paid += b.price; }
+    else open++;
+  });
+  return {done:done, open:open, total:bks.length, paid:paid};
+}
+
+function renderPlanHero(t){
+  var el = document.getElementById('td-hero');
+  if (!el) return;
+  var ph = tripPhase(t);
+  var bs = bookingStats(t);
+  var nights = daysBetween(t.start, t.end);
+  var pct = bs.total ? Math.round(bs.done / bs.total * 100) : 0;
+  var html = '<div class="plan-hero">' +
+    '<div><div class="plan-count">' + esc(ph.val) + '</div><div class="plan-count-lbl">' + esc(ph.lbl) + '</div></div>' +
+    '<div class="plan-hero-meta">' +
+      nights + ' nights · ' + (t.travellers || 2) + ' travellers<br>' +
+      (t.legs && t.legs.length ? t.legs.length + ' bases · ' : '') +
+      fmtDate(t.start) + ' → ' + fmtDate(t.end) +
+    '</div>';
+  if (bs.total) {
+    html += '<div class="plan-prog">' +
+      '<div class="section-note">' + bs.done + ' of ' + bs.total + ' bookings done · ' + fmtEUR(bs.paid) + ' paid</div>' +
+      '<div class="plan-prog-bar"><span style="width:' + pct + '%"></span></div>' +
+    '</div>';
+  }
+  el.innerHTML = html + '</div>';
+}
+
+function renderAlerts(t){
+  var el = document.getElementById('td-alerts');
+  if (!el) return;
+  el.innerHTML = (t.alerts || []).map(function(a){
+    return '<div class="plan-alert"><div class="plan-alert-title">⚠ ' + esc(a.title) + '</div>' +
+      '<div class="plan-alert-body">' + esc(a.body) + '</div></div>';
+  }).join('');
+}
+
+function renderLegs(t){
+  var el = document.getElementById('td-legs');
+  if (!el) return;
+  var legs = t.legs || [];
+  if (!legs.length) { el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="leg-strip">' + legs.map(function(l){
+    var stay = l.url
+      ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.stay) + '</a>'
+      : esc(l.stay);
+    var mark = l.stayStatus === 'done' ? ' ✅' : (l.stayStatus === 'hold' ? ' ⏳' : '');
+    return '<div class="leg-chip">' +
+      '<div class="leg-chip-top">' + esc(l.emoji) + ' ' + esc(l.name) + '</div>' +
+      '<div class="leg-chip-sub">' + esc(l.place) + '<br>' + l.nights + (l.nights === 1 ? ' night' : ' nights') + ' · ' + esc(l.price || '') + '</div>' +
+      (l.stay ? '<div class="leg-chip-stay">' + stay + mark + '</div>' : '') +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function renderItinerary(t){
+  var el = document.getElementById('td-itinerary');
+  if (!el) return;
+  var days = t.itinerary || [];
+  if (!days.length) {
+    el.innerHTML = '<div class="section-note">No day-by-day plan on this trip yet.</div>';
+    return;
+  }
+  var legName = {};
+  (t.legs || []).forEach(function(l){ legName[l.id] = l.name; });
+  var today = todayISO();
+  var lastLeg = null;
+  el.innerHTML = days.map(function(d){
+    var out = '';
+    var base = legName[d.legId] || (d.legId === 'air' ? 'In transit' : '');
+    if (base !== lastLeg) {
+      var leg = (t.legs || []).filter(function(l){ return l.id === d.legId; })[0];
+      out += '<div class="itin-sep">' + esc(base) + (leg ? ' · ' + esc(leg.stay) : '') + '</div>';
+      lastLeg = base;
+    }
+    var dt = new Date(d.date + 'T00:00:00');
+    out += '<div class="itin-day' + (d.date === today ? ' today' : '') + '">' +
+      '<div class="itin-date">' +
+        '<div class="itin-dow">' + DOW[dt.getDay()] + '</div>' +
+        '<div class="itin-dnum">' + dt.getDate() + '</div>' +
+        '<div class="itin-mon">' + MONTH_NAMES[dt.getMonth()] + '</div>' +
+      '</div>' +
+      '<div class="itin-main">' +
+        '<div class="itin-title">' + esc(d.emoji) + ' ' + esc(d.title) +
+          (d.date === today ? '<span class="itin-base">today</span>' : '') + '</div>' +
+        '<ul class="itin-items">' + (d.items || []).map(function(i){ return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
+      '</div>' +
+    '</div>';
+    return out;
+  }).join('');
+}
+
+function renderBookings(t){
+  var el = document.getElementById('td-bookings');
+  if (!el) return;
+  var bks = t.bookings || [];
+  if (!bks.length) { el.innerHTML = '<div class="section-note">No bookings tracked on this trip yet.</div>'; return; }
+  var bs = bookingStats(t);
+  var html = '<div class="section-note" style="margin-bottom:.9rem">' +
+    bs.done + ' done · ' + bs.open + ' still open · ' + fmtEUR(bs.paid) + ' paid so far. ' +
+    'Tap a box to cycle it: open → done → on hold.</div>';
+  var lastCat = null;
+  bks.forEach(function(b){
+    if (b.cat !== lastCat) {
+      html += '<div class="bk-group">' + esc(CAT_LABELS[b.cat] || b.cat) + '</div>';
+      lastCat = b.cat;
+    }
+    var detail = esc(b.detail || '');
+    if (b.url) detail += ' <a href="' + esc(b.url) + '" target="_blank" rel="noopener">open ↗</a>';
+    html += '<div class="bk-row' + (b.status === 'done' ? ' is-done' : '') + '">' +
+      '<button class="bk-tick ' + esc(b.status) + '" title="' + esc(b.status) + '" ' +
+        'onclick="cycleBooking(\'' + esc(b.id) + '\')">' + BK_MARK[b.status] + '</button>' +
+      '<div class="bk-main"><div class="bk-title">' + esc(b.title) + '</div>' +
+        (detail ? '<div class="bk-detail">' + detail + '</div>' : '') + '</div>' +
+      '<div class="bk-price">' + (typeof b.price === 'number' ? fmtEUR(b.price) : '—') +
+        '<small>' + (b.status === 'done' ? 'paid' : b.status === 'hold' ? 'on hold' : 'to book') + '</small></div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderTodos(t){
+  var el = document.getElementById('td-todos');
+  if (!el) return;
+  var todos = t.todos || [];
+  if (!todos.length) { el.innerHTML = ''; return; }
+  var open = todos.filter(function(x){ return !x.done; }).length;
+  el.innerHTML = '<div class="plan-sub">Open items · ' + open + ' left</div>' +
+    todos.map(function(x, i){
+      return '<div class="todo-row' + (x.done ? ' is-done' : '') + '">' +
+        '<button class="' + (x.done ? 'done' : '') + '" onclick="toggleTodo(' + i + ')">' + (x.done ? '✓' : '') + '</button>' +
+        '<span>' + esc(x.text) + '</span></div>';
+    }).join('');
+}
+
+function renderLogistics(t){
+  var el = document.getElementById('td-logistics');
+  if (!el) return;
+  var html = '';
+  if ((t.flights || []).length) {
+    html += '<div class="plan-sub">Flights</div><table class="fl-tbl">' + t.flights.map(function(f){
+      return '<tr><td>' + esc(f.code) + '</td>' +
+        '<td class="fl-route">' + esc(f.from) + ' → ' + esc(f.to) + '</td>' +
+        '<td>' + esc(fmtDate(f.date)) + '</td>' +
+        '<td>' + esc(f.dep) + ' → ' + esc(f.arr) + '</td>' +
+        '<td style="color:var(--muted)">' + esc(f.pnr) + '</td></tr>';
+    }).join('') + '</table>';
+  }
+  if ((t.transfers || []).length) {
+    html += '<div class="plan-sub">Ground transfers</div><table class="tr-tbl">' + t.transfers.map(function(x){
+      return '<tr><td>' + esc(x.route) + '<div class="tr-time">' + esc(x.time) + '</div></td>' +
+        '<td>' + esc(x.cost) + '</td></tr>';
+    }).join('') + '</table>';
+  }
+  if ((t.legs || []).length) {
+    html += '<div class="plan-sub">Where you sleep</div><table class="tr-tbl">' + t.legs.map(function(l){
+      var name = l.url ? '<a href="' + esc(l.url) + '" target="_blank" rel="noopener" style="color:var(--sky);text-decoration:underline">' + esc(l.stay) + '</a>' : esc(l.stay);
+      return '<tr><td>' + esc(l.emoji) + ' ' + esc(l.name) + ' — ' + name +
+        (l.note ? '<div class="tr-time">' + esc(l.note) + '</div>' : '') + '</td>' +
+        '<td>' + esc(fmtDate(l.start)) + ' → ' + esc(fmtDate(l.end)) + '<br>' + esc(l.price || '') + '</td></tr>';
+    }).join('') + '</table>';
+  }
+  el.innerHTML = html || '<div class="section-note">No logistics recorded on this trip yet.</div>';
+}
+
+/* Toggling a booking or an open item writes straight through to the store, so
+   ticking things off on the plane survives a reload. */
+async function cycleBooking(bid){
+  var t = trips[currentTripId];
+  if (!t) return;
+  var b = (t.bookings || []).filter(function(x){ return x.id === bid; })[0];
+  if (!b) return;
+  b.status = BK_NEXT[b.status] || 'todo';
+  await Store.saveTrip(currentTripId, t);
+  renderBookings(t); renderPlanHero(t); renderLog();
+}
+
+async function toggleTodo(i){
+  var t = trips[currentTripId];
+  if (!t || !t.todos || !t.todos[i]) return;
+  t.todos[i].done = !t.todos[i].done;
+  await Store.saveTrip(currentTripId, t);
+  renderTodos(t);
+}
 
 async function openTrip(id){
   currentTripId = id;
@@ -1725,7 +2138,15 @@ async function openTrip(id){
   document.getElementById('td-name').textContent = t.emoji + '  ' + t.name;
   document.getElementById('td-dates').textContent = fmtDate(t.start) + ' — ' + fmtDate(t.end) + '  ·  ' + t.status;
   document.getElementById('td-summary').textContent = t.summary || '';
-  document.getElementById('td-highlights').innerHTML = (t.highlights||[]).map(function(h){ return '<li>'+h+'</li>'; }).join('');
+  document.getElementById('td-highlights').innerHTML = (t.highlights||[]).map(function(h){ return '<li>'+esc(h)+'</li>'; }).join('');
+
+  renderPlanHero(t);
+  renderAlerts(t);
+  renderLegs(t);
+  renderItinerary(t);
+  renderBookings(t);
+  renderTodos(t);
+  renderLogistics(t);
 
   var costsHtml = '';
   Object.keys(CAT_LABELS).forEach(function(cat){
@@ -1734,8 +2155,16 @@ async function openTrip(id){
       '<div class="cost-figs"><span class="planned">'+fmtEUR(c.planned)+' planned</span><br>'+fmtEUR(c.actual)+' actual</div></div>';
   });
   var totalPlanned = tripTotal(t.costs, 'planned'), totalActual = tripTotal(t.costs, 'actual');
-  costsHtml += '<div class="cost-total"><span>Total</span><span>'+fmtEUR(totalActual !== null ? totalActual : totalPlanned)+'</span></div>';
-  costsHtml += '<div class="cost-note">Figures are for the whole trip (both travellers), in EUR. "Planned" is the pre-trip estimate; "actual" fills in as bookings and receipts land.</div>';
+  var totalCell;
+  if (totalActual !== null && totalPlanned !== null && t.status !== 'completed') {
+    totalCell = fmtEUR(totalActual) + ' <span style="font-family:\'IBM Plex Mono\',monospace;font-size:.65rem;font-weight:400;color:var(--muted)">spent of ' + fmtEUR(totalPlanned) + ' planned</span>';
+  } else {
+    totalCell = fmtEUR(totalActual !== null ? totalActual : totalPlanned);
+  }
+  costsHtml += '<div class="cost-total"><span>Total</span><span>'+totalCell+'</span></div>';
+  var bs = bookingStats(t);
+  if (bs.total) costsHtml += '<div class="cost-row" style="border-bottom:none;padding-top:.9rem"><div class="cost-cat" style="color:var(--muted)">Confirmed bookings (' + bs.done + ' of ' + bs.total + ')</div><div class="cost-figs">' + fmtEUR(bs.paid) + '</div></div>';
+  costsHtml += '<div class="cost-note">Figures are for the whole trip (' + (t.travellers || 2) + ' travellers), in EUR. "Planned" is the pre-trip estimate; "actual" fills in as bookings and receipts land. The bookings line counts only items ticked done on the Bookings tab that carry a price.</div>';
   document.getElementById('td-costs').innerHTML = costsHtml;
 
   await renderJournal(id);
@@ -1816,8 +2245,9 @@ document.getElementById('nt-save').addEventListener('click', async function(){
 
 /* ---------- boot ---------- */
 async function renderTripsAll(){
-  if (!currentUser) return;
+  if (sb && !currentUser) return;
   trips = await Store.listTrips();
+  await Store.seedMissing(trips);
   if (mapMode === 'trips') renderTripsMap();
   renderStats();
   renderLog();
@@ -1834,7 +2264,7 @@ document.addEventListener('DOMContentLoaded', function() {
   renderGrid();
 
   var note = document.getElementById('footer-store-note');
-  if (note) note.textContent = sb ? 'Trip history is private to your signed-in account.' : 'Trip history needs Supabase configured (see SUPABASE_URL at the top of the script) to save anywhere.';
+  if (note) note.textContent = sb ? 'Trips are private to your signed-in account.' : 'Trips are saved in this browser. Configure Supabase (see SUPABASE_URL at the top of the script) to sync them across devices.';
 
   initAuth();
 });
