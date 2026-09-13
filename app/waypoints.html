@@ -621,10 +621,15 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
       <div id="auth-form">
         <div class="field">
           <label>Email</label>
-          <input type="text" id="auth-email" placeholder="you@example.com">
+          <input type="text" id="auth-email" placeholder="you@example.com" autocomplete="username">
         </div>
-        <div class="form-actions" style="justify-content:flex-start">
-          <button class="btn primary" onclick="signInWithEmail(document.getElementById('auth-email').value.trim())">Send magic link</button>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="auth-pass" placeholder="leave empty to get a magic link instead" autocomplete="current-password">
+        </div>
+        <div class="form-actions" style="justify-content:flex-start;flex-wrap:wrap">
+          <button class="btn primary" id="auth-signin">Sign in</button>
+          <button class="btn" id="auth-magic">Email me a link</button>
         </div>
       </div>
       <div id="username-form" class="hidden">
@@ -1702,9 +1707,10 @@ function renderAuthGate(){
   nameForm.classList.add('hidden');
   var uname = currentProfile && currentProfile.username;
   if (note) {
-    note.innerHTML = uname
+    var lnk = ' · <a href="#" onclick="promptPassword();return false" style="color:var(--sky);text-decoration:underline">set a password</a>';
+    note.innerHTML = (uname
       ? 'signed in as @' + esc(uname)
-      : 'signed in · <a href="#" onclick="promptUsername();return false" style="color:var(--sky);text-decoration:underline">pick a username</a>';
+      : 'signed in · <a href="#" onclick="promptUsername();return false" style="color:var(--sky);text-decoration:underline">pick a username</a>') + lnk;
   }
 }
 
@@ -1716,6 +1722,30 @@ async function promptUsername(){
   if (!res || !res.ok) { window.alert((res && res.error) || 'Could not set that username.'); return; }
   await loadProfile();
   renderAuthGate();
+}
+
+document.getElementById('auth-signin').addEventListener('click', async function(){
+  var status = document.getElementById('auth-status');
+  var email = document.getElementById('auth-email').value.trim();
+  var pass = document.getElementById('auth-pass').value;
+  if (!email) { status.textContent = 'Enter your email first.'; return; }
+  if (!pass) { return signInWithEmail(email); }   // no password typed → magic link
+  status.textContent = 'Signing in…';
+  var res = await Store.signInPassword(email, pass);
+  status.textContent = res.ok ? '' : ('Error: ' + res.error);
+});
+
+document.getElementById('auth-magic').addEventListener('click', function(){
+  signInWithEmail(document.getElementById('auth-email').value.trim());
+});
+
+// Offered from the header once you're in, so email stops being load-bearing.
+async function promptPassword(){
+  var val = window.prompt('Set a password for this account (at least 6 characters).\n\nAfter this you can sign in with your email and password on any device, with no emailed link.');
+  if (val === null) return;
+  var res = await Store.setPassword(val);
+  window.alert(res.ok ? 'Password set. You can now sign in with it anywhere.' : ('Could not set it: ' + res.error));
+  if (res.ok) renderAuthGate();
 }
 
 document.getElementById('uname-save').addEventListener('click', async function(){
@@ -1824,6 +1854,21 @@ var Store = (function(){
   }
 
   /* ---- accounts & sharing (cloud only — local mode has no notion of people) ---- */
+  async function signInPassword(email, password){
+    if (!sb) return {ok:false, error:'Supabase is not configured.'};
+    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+    if (res.error) return {ok:false, error: res.error.message};
+    return {ok:true};
+  }
+  /* Set a password on the account you're already signed into. Turns a one-off
+     magic link into the last email this app ever needs to send. */
+  async function setPassword(password){
+    if (!cloud()) return {ok:false, error:'Sign in first.'};
+    var res = await sb.auth.updateUser({ password: password });
+    if (res.error) return {ok:false, error: res.error.message};
+    return {ok:true};
+  }
+
   async function myProfile(){
     if (!cloud()) return null;
     var res = await sb.rpc('my_profile');
@@ -1887,6 +1932,7 @@ var Store = (function(){
   return { listTrips: listTrips, saveTrip: saveTrip, addJournalEntry: addJournalEntry,
            listJournal: listJournal, seedMissing: seedMissing, reseedAll: reseedAll, isCloud: cloud,
            myProfile: myProfile, setUsername: setUsername,
+           signInPassword: signInPassword, setPassword: setPassword,
            roster: roster, addMember: addMember, removeMember: removeMember };
 })();
 

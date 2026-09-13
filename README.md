@@ -46,6 +46,8 @@ You can also add trips through the UI (**+ Log a trip**) — those get the logbo
 
 Without Supabase, trips live in one browser and only you see them. Connect it and you get accounts, syncing, and trips shared with the people you're actually travelling with.
 
+**Signing in.** Either a password or a passwordless emailed link — type a password to use one, leave it empty to get a link. Supabase's built-in mailer is rate-limited to a couple of emails an hour and is meant for testing, so set a password once (header → **set a password**) and email stops mattering. For heavy email use, point the project at real SMTP under **Authentication → Emails**.
+
 **How sharing works.** Everyone picks a **username** the first time they sign in. To share a trip, its owner types the other person's username — no emails exchanged, nothing to accept. From then on both of you see the same trip, edit the same bookings, and write into the same journal, with each entry showing who wrote it. Only the owner can add or remove travellers; companions can edit everything else and can remove themselves.
 
 ### 1. Create the Supabase project
