@@ -187,6 +187,13 @@ grant execute on function
   public.is_trip_owner(text)
   to authenticated;
 
+-- Supabase's "Automatically expose new tables" setting grants anon by default,
+-- which would quietly undo the line above. Take it back explicitly: every policy
+-- in this schema requires a signed-in auth.uid(), so an unauthenticated role has
+-- no business reaching these tables at all. RLS would return zero rows anyway —
+-- this is the second lock, for the day someone disables RLS on a table by hand.
+revoke all on table profiles, trips, trip_members, journal_entries from anon;
+
 
 -- ── TRIGGERS ────────────────────────────────────────────────────────────────
 

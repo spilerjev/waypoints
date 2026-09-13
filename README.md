@@ -60,6 +60,8 @@ Without Supabase, trips live in one browser and only you see them. Connect it an
 
 ### 2. Point the app at it
 
+*Already done for this repo — it's wired to the `Waypoints` project (`pmglrywhasraqrnnudhy`). The rest of this section is for anyone setting up their own copy.*
+
 In `app/waypoints.html`, near the top of the `<script>` block:
 
 ```js
@@ -69,7 +71,7 @@ var SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 
 Replace both. The app detects a real URL and switches itself on.
 
-*(The anon key is designed to be public and is fine in a public repo — Supabase's security model rests on the row-level security policies in the schema, not on hiding this key.)*
+*(The publishable/anon key is designed to be public and is fine in a public repo — Supabase's security model rests on the row-level security policies in the schema, not on hiding this key. The `secret`/`service_role` key is the opposite: it bypasses RLS entirely and must never appear in client code.)*
 
 ### 3. Get everyone on the trip
 
