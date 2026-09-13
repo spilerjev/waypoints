@@ -1630,10 +1630,10 @@ async function initAuth(){
     currentUser = session ? session.user : null;
     await loadProfile();
     renderAuthGate();
-    if (currentUser && currentProfile && currentProfile.username) renderTripsAll();
+    if (currentUser) renderTripsAll();
   });
   renderAuthGate();
-  if (currentUser && currentProfile && currentProfile.username) renderTripsAll();
+  if (currentUser) renderTripsAll();
 }
 
 async function signInWithEmail(email){
@@ -1679,17 +1679,27 @@ function renderAuthGate(){
     if (note) note.textContent = '';
     return;
   }
-  if (!currentProfile || !currentProfile.username) {
-    gate.classList.remove('hidden');
-    content.classList.add('hidden');
-    emailForm.classList.add('hidden');
-    nameForm.classList.remove('hidden');
-    document.getElementById('auth-status').textContent = '';
-    return;
-  }
+  // A username is a convenience, not a gate. Blocking on it stopped people
+  // using the app at all — and a companion can be added by email regardless.
   gate.classList.add('hidden');
   content.classList.remove('hidden');
-  if (note) note.textContent = 'signed in as @' + currentProfile.username;
+  nameForm.classList.add('hidden');
+  var uname = currentProfile && currentProfile.username;
+  if (note) {
+    note.innerHTML = uname
+      ? 'signed in as @' + esc(uname)
+      : 'signed in · <a href="#" onclick="promptUsername();return false" style="color:var(--sky);text-decoration:underline">pick a username</a>';
+  }
+}
+
+// Claim a username after the fact, from the header link.
+async function promptUsername(){
+  var val = window.prompt('Pick a username — 3–20 characters, letters, numbers and underscores.\n\nPeople can add you to a trip by this, or by your email.');
+  if (val === null) return;
+  var res = await Store.setUsername(val);
+  if (!res || !res.ok) { window.alert((res && res.error) || 'Could not set that username.'); return; }
+  await loadProfile();
+  renderAuthGate();
 }
 
 document.getElementById('uname-save').addEventListener('click', async function(){
@@ -1816,9 +1826,9 @@ var Store = (function(){
     if (res.error) { console.error(res.error); return []; }
     return res.data || [];
   }
-  async function addMember(tripId, username){
+  async function addMember(tripId, identifier){
     if (!cloud()) return {ok:false, error:'Sign in to share a trip.'};
-    var res = await sb.rpc('add_trip_member', { p_trip_id: tripId, p_username: username });
+    var res = await sb.rpc('add_trip_member', { p_trip_id: tripId, p_identifier: identifier });
     if (res.error) return {ok:false, error: res.error.message};
     return res.data;
   }
@@ -2251,7 +2261,7 @@ async function renderRoster(t){
   }).join('') + '</div>';
   if (youAreOwner) {
     html += '<div class="roster-add">' +
-      '<input type="text" id="roster-uname" placeholder="username" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+      '<input type="text" id="roster-uname" placeholder="username or email" autocomplete="off" autocapitalize="off" spellcheck="false" style="width:200px">' +
       '<button class="btn" onclick="addTraveller()">Add traveller</button></div>';
   } else {
     html += '<div class="section-note" style="margin-top:.6rem">Shared with you — only the trip owner can add or remove people.</div>';
@@ -2264,7 +2274,7 @@ async function addTraveller(){
   var input = document.getElementById('roster-uname');
   var msg = document.getElementById('roster-msg');
   var name = (input.value || '').trim();
-  if (!name) { msg.className = 'roster-msg err'; msg.textContent = 'Type their username first.'; return; }
+  if (!name) { msg.className = 'roster-msg err'; msg.textContent = 'Type their username or email first.'; return; }
   msg.className = 'roster-msg'; msg.textContent = 'Adding…';
   var res = await Store.addMember(currentTripId, name);
   if (!res || !res.ok) {
@@ -2275,7 +2285,7 @@ async function addTraveller(){
   input.value = '';
   await renderRoster(trips[currentTripId]);
   var m = document.getElementById('roster-msg');
-  if (m) { m.className = 'roster-msg ok'; m.textContent = '@' + res.username + ' can now see and edit this trip.'; }
+  if (m) { m.className = 'roster-msg ok'; m.textContent = res.who + ' can now see and edit this trip.'; }
 }
 
 async function removeTraveller(userId){

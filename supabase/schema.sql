@@ -263,7 +263,12 @@ begin
   return json_build_object('ok', true, 'username', v_clean);
 end $$;
 
-create or replace function public.add_trip_member(p_trip_id text, p_username text)
+-- Accepts either a username or an email address. Email matters because the
+-- person you want to add has usually signed in already but not bothered with a
+-- username, and you know their email — insisting on a username first is a
+-- coordination problem the app invented for itself.
+drop function if exists public.add_trip_member(text, text);
+create or replace function public.add_trip_member(p_trip_id text, p_identifier text)
 returns json language plpgsql security definer set search_path = public as $$
 declare v_uid uuid; v_clean text;
 begin
@@ -271,19 +276,35 @@ begin
     return json_build_object('ok', false, 'error',
       'Only the person who created the trip can add travellers.');
   end if;
-  v_clean := lower(trim(p_username));
-  select id into v_uid from profiles where username = v_clean;
-  if v_uid is null then
-    return json_build_object('ok', false, 'error',
-      'Nobody is using that username. They need to sign in and pick one first.');
+  v_clean := lower(trim(p_identifier));
+  if v_clean = '' then
+    return json_build_object('ok', false, 'error', 'Type a username or email first.');
   end if;
+
+  if position('@' in v_clean) > 0 then
+    select id into v_uid from auth.users where lower(email) = v_clean;
+    if v_uid is null then
+      return json_build_object('ok', false, 'error',
+        'Nobody has signed in with that email yet. They need to open the app and sign in once first.');
+    end if;
+  else
+    select id into v_uid from profiles where username = v_clean;
+    if v_uid is null then
+      return json_build_object('ok', false, 'error',
+        'No one is using that username. Try their email instead.');
+    end if;
+  end if;
+
   if v_uid = auth.uid() then
     return json_build_object('ok', false, 'error', 'That is you — you are already on this trip.');
   end if;
+
   insert into trip_members (trip_id, user_id, role)
   values (p_trip_id, v_uid, 'companion')
   on conflict do nothing;
-  return json_build_object('ok', true, 'username', v_clean);
+
+  return json_build_object('ok', true, 'who',
+    coalesce((select '@' || username from profiles where id = v_uid), v_clean));
 end $$;
 
 create or replace function public.trip_roster(p_trip_id text)
