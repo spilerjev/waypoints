@@ -11,7 +11,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 .hidden{display:none !important}
-.auth-card{max-width:420px;margin:0 auto;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:1.6rem;box-shadow:var(--shadow);text-align:center}
+.auth-card{max-width:420px;margin:0 auto;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:1.8rem;box-shadow:var(--shadow);text-align:center}
 .auth-card .field{text-align:left}
 :root{
   --bg:#f2ecdc;--s1:#e9e0c7;--s2:#ffffff;--s3:#f5efdf;
@@ -48,7 +48,7 @@ a{color:inherit;text-decoration:none}
 .hdr-eye{font-family:'IBM Plex Mono',monospace;font-size:.6rem;letter-spacing:.25em;text-transform:uppercase;color:var(--accent);margin-bottom:.6rem}
 .hdr h1{font-family:'Spectral',serif;font-size:clamp(1.9rem,4vw,3rem);font-weight:600;line-height:1.1}
 .hdr h1 em{color:var(--accent);font-style:italic}
-.hdr-sub{color:var(--muted);font-size:.78rem;margin-top:.4rem;font-family:'IBM Plex Mono',monospace}
+.hdr-sub{color:var(--muted);font-size:.82rem;margin-top:.5rem;font-family:'Karla',sans-serif}
 
 /* ── SEARCH / FILTER BAR ── */
 .filter-bar{max-width:960px;margin:1.2rem auto 0;padding:0 1.2rem}
@@ -63,8 +63,8 @@ a{color:inherit;text-decoration:none}
 .pill.on.bad{background:var(--bad);border-color:var(--bad);color:#fff}
 .pill.on.good{background:var(--good);border-color:var(--good);color:#fff}
 .pill.on.sky{background:var(--sky);border-color:var(--sky);color:#fff}
-input[type=text]{padding:.5rem .7rem;border-radius:8px;border:1px solid var(--border2);background:var(--s2);color:var(--text);font-family:'Karla',sans-serif;font-size:.8rem;min-width:140px;transition:border-color .15s}
-input[type=text]:focus{outline:none;border-color:var(--accent)}
+input[type=text],input[type=password]{padding:.5rem .7rem;border-radius:8px;border:1px solid var(--border2);background:var(--s2);color:var(--text);font-family:'Karla',sans-serif;font-size:.8rem;min-width:140px;transition:border-color .15s}
+input[type=text]:focus,input[type=password]:focus{outline:none;border-color:var(--accent)}
 select{padding:.5rem 1.9rem .5rem .7rem;border-radius:8px;border:1px solid var(--border2);background:var(--s2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0l5 6 5-6z" fill="%23888"/></svg>') no-repeat right .7rem center;color:var(--text);font-family:'Karla',sans-serif;font-size:.8rem;cursor:pointer;appearance:none;-webkit-appearance:none;transition:border-color .15s}
 select:focus{outline:none;border-color:var(--accent)}
 
@@ -98,7 +98,7 @@ select:focus{outline:none;border-color:var(--accent)}
 .map-wrap{max-width:960px;margin:0 auto;padding:0 1.2rem}
 .map-head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;margin-bottom:.9rem;flex-wrap:wrap}
 .section-title{font-family:'Spectral',serif;font-weight:600;font-size:1.15rem}
-.section-note{font-family:'IBM Plex Mono',monospace;font-size:.64rem;color:var(--muted);letter-spacing:.02em}
+.section-note{font-family:'Karla',sans-serif;font-size:.76rem;color:var(--muted);line-height:1.6}
 .map-frame{position:relative;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:1.2rem;box-shadow:var(--shadow);overflow:hidden}
 .map-frame svg{width:100%;height:auto;display:block}
 .map-frame svg path,.map-frame svg g path{fill:color-mix(in srgb, var(--text) 9%, transparent);stroke:var(--bg);stroke-width:.4;transition:fill .15s;cursor:default}
@@ -303,7 +303,7 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
 .trip-cost-lbl{font-family:'IBM Plex Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:.1rem}
 .trip-bar{width:120px;height:5px;border-radius:3px;overflow:hidden;display:flex;margin-top:.5rem;background:var(--border)}
 .trip-bar span{height:100%}
-.empty-log{padding:2.5rem 1rem;text-align:center;color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.75rem;border:1px dashed var(--border2);border-radius:14px}
+.empty-log{padding:2.5rem 1rem;text-align:center;color:var(--muted);font-family:'Karla',sans-serif;font-size:.85rem;border:1px dashed var(--border2);border-radius:14px}
 .add-trip-btn{margin-top:1rem;display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.1rem;border-radius:9px;background:transparent;border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.7rem;letter-spacing:.04em;cursor:pointer;transition:all .15s}
 .add-trip-btn:hover{border-color:var(--accent);color:var(--accent)}
 
@@ -330,7 +330,7 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
 .journal-body p{margin-bottom:.7rem}
 .field{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
 .field label{font-family:'IBM Plex Mono',monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.field input[type=text],.field select,.field textarea{background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:.55rem .7rem;color:var(--text);font-family:'Karla',sans-serif;font-size:.85rem;min-width:0;width:100%}
+.field input[type=text],.field input[type=password],.field select,.field textarea{background:var(--s2);border:1px solid var(--border2);border-radius:8px;padding:.55rem .7rem;color:var(--text);font-family:'Karla',sans-serif;font-size:.85rem;min-width:0;width:100%}
 .field textarea{resize:vertical;min-height:5rem;font-family:'Karla',sans-serif}
 .field-row{display:grid;grid-template-columns:1fr 1fr;gap:.8rem}
 .form-actions{display:flex;justify-content:flex-end;gap:.6rem;margin-top:1.2rem}
@@ -338,7 +338,7 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
 .btn:hover{border-color:var(--accent);color:var(--accent)}
 .btn.primary{background:var(--accent);color:#211c14;border-color:var(--accent)}
 .btn.primary:hover{filter:brightness(1.08);color:#211c14}
-.save-status{font-family:'IBM Plex Mono',monospace;font-size:.6rem;color:var(--faint);margin-top:.6rem}
+.save-status{font-family:'Karla',sans-serif;font-size:.78rem;color:var(--faint);margin-top:.6rem;line-height:1.5}
 @media(max-width:600px){
   .field-row{grid-template-columns:1fr}
   .trip-card{flex-wrap:wrap}
@@ -433,7 +433,7 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
 .roster-add input{padding:.42rem .65rem;border-radius:8px;border:1px solid var(--border2);background:var(--s2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.72rem;width:150px}
 .roster-add input:focus{outline:none;border-color:var(--accent)}
 .roster-add .btn{padding:.42rem .9rem;font-size:.66rem}
-.roster-msg{font-family:'IBM Plex Mono',monospace;font-size:.62rem;margin-top:.5rem;min-height:1em}
+.roster-msg{font-family:'Karla',sans-serif;font-size:.78rem;margin-top:.5rem;min-height:1em}
 .roster-msg.err{color:var(--bad)}
 .roster-msg.ok{color:var(--good)}
 .journal-author{color:var(--muted);font-weight:400}
@@ -625,7 +625,11 @@ footer{text-align:center;padding:1.5rem;font-family:'IBM Plex Mono',monospace;fo
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" id="auth-pass" placeholder="leave empty to get a magic link instead" autocomplete="current-password">
+          <input type="password" id="auth-pass" placeholder="leave empty for an emailed link" autocomplete="current-password">
+        </div>
+        <div class="field">
+          <label>Username <span style="text-transform:none;letter-spacing:0;color:var(--faint)">— new here? pick one now</span></label>
+          <input type="text" id="auth-uname" placeholder="how people add you to a trip" autocomplete="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="form-actions" style="justify-content:flex-start;flex-wrap:wrap">
           <button class="btn primary" id="auth-signin">Sign in</button>
@@ -1650,6 +1654,7 @@ async function initAuth(){
   sb.auth.onAuthStateChange(async function(event, session){
     currentUser = session ? session.user : null;
     await loadProfile();
+    if (currentUser) await claimTypedUsername();
     renderAuthGate();
     if (currentUser) renderTripsAll();
   });
@@ -1732,8 +1737,23 @@ document.getElementById('auth-signin').addEventListener('click', async function(
   if (!pass) { return signInWithEmail(email); }   // no password typed → magic link
   status.textContent = 'Signing in…';
   var res = await Store.signInPassword(email, pass);
-  status.textContent = res.ok ? '' : ('Error: ' + res.error);
+  if (!res.ok) { status.textContent = 'Error: ' + res.error; return; }
+  status.textContent = '';
+  await claimTypedUsername();
 });
+
+/* If they filled the username box on the way in, claim it now — a username is
+   only useful once there's an account to attach it to. */
+async function claimTypedUsername(){
+  var box = document.getElementById('auth-uname');
+  var wanted = box ? box.value.trim() : '';
+  if (!wanted) return;
+  await loadProfile();
+  if (currentProfile && currentProfile.username) { box.value = ''; return; }
+  var res = await Store.setUsername(wanted);
+  if (res && res.ok) { box.value = ''; await loadProfile(); renderAuthGate(); }
+  else if (res) { document.getElementById('auth-status').textContent = 'Signed in, but that username did not work: ' + res.error; }
+}
 
 document.getElementById('auth-magic').addEventListener('click', function(){
   signInWithEmail(document.getElementById('auth-email').value.trim());
