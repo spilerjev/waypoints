@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Waypoints</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#0b0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;0,700;0,900;1,400;1,500&family=Karla:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <!-- Your own trips (git-ignored, optional — the app works fine without it) -->
@@ -13,6 +19,8 @@
 .hidden{display:none !important}
 .auth-card{max-width:420px;margin:0 auto;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:1.8rem;box-shadow:var(--shadow);text-align:center}
 .auth-card .field{text-align:left}
+#offline-bar{position:sticky;top:0;z-index:300;background:var(--warn);color:#211c14;font-size:.78rem;font-weight:600;text-align:center;padding:.45rem .8rem;line-height:1.4}
+.pending-pill{font-size:.6rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--warn);border:1px solid color-mix(in srgb, var(--warn) 40%, transparent);border-radius:999px;padding:.1rem .45rem;margin-left:.4rem}
 .paste-chips{display:flex;gap:.4rem;flex-wrap:wrap}
 .paste-chips span{background:var(--s3);border:1px solid var(--border);border-radius:999px;padding:.25rem .7rem;font-size:.76rem}
 .auth-wide{width:100%;justify-content:center;margin-top:.2rem}
@@ -540,6 +548,7 @@ footer{text-align:center;padding:1.5rem;font-family:'Karla',sans-serif;font-size
 </style>
 </head>
 <body>
+<div id="offline-bar" hidden>Offline — showing your last saved copy. Changes are kept here and sent when you're back.</div>
 <header class="hdr">
   <div class="hdr-eye">Waypoints</div>
   <h1>Find Your <em>Perfect</em> Trip</h1>
@@ -1959,13 +1968,51 @@ var Store = (function(){
     };
   }
 
+  /* A failed read used to return {} — which on a plane means opening the app
+     and being told you have no trips. Every successful cloud read is mirrored
+     locally, and a failure serves that mirror instead. */
+  var LS_MIRROR = 'waypoints.mirror.v1';
+
   async function listTrips(){
     if (!cloud()) return lsRead(LS_TRIPS, {});
     var res = await sb.from('trips').select('*').order('start_date', {ascending:false});
-    if (res.error) { console.error(res.error); return {}; }
+    if (res.error) {
+      console.error(res.error);
+      var cached = lsRead(LS_MIRROR, null);
+      if (cached) { setOffline(true); return cached; }
+      return {};
+    }
     var out = {};
     res.data.forEach(function(row){ out[row.id] = rowToTrip(row); });
+    lsWrite(LS_MIRROR, out);
+    setOffline(false);
+    applyPending(out);
     return out;
+  }
+
+  /* Edits made with no signal live here until a write succeeds. */
+  var LS_PENDING = 'waypoints.pending.v1';
+  function pendingMap(){ return lsRead(LS_PENDING, {}); }
+  function queuePending(id, data){
+    var q = pendingMap(); q[id] = data; lsWrite(LS_PENDING, q);
+  }
+  function applyPending(into){
+    var q = pendingMap();
+    Object.keys(q).forEach(function(id){ into[id] = q[id]; });
+  }
+  function pendingCount(){ return Object.keys(pendingMap()).length; }
+
+  async function flushPending(){
+    if (!cloud()) return {flushed:0, failed:0};
+    var q = pendingMap(), ids = Object.keys(q), flushed = 0, failed = 0;
+    for (var i = 0; i < ids.length; i++){
+      var res = await sb.from('trips').upsert(tripToRow(ids[i], q[ids[i]]));
+      if (res.error) { failed++; continue; }
+      delete q[ids[i]];
+      flushed++;
+    }
+    lsWrite(LS_PENDING, q);
+    return {flushed:flushed, failed:failed};
   }
 
   /* Returns {ok:true} or {ok:false, error}. Callers must check: a write that
@@ -1980,7 +2027,19 @@ var Store = (function(){
         : {ok:false, error:'this browser refused to store it'};
     }
     var res = await sb.from('trips').upsert(tripToRow(id, data));
-    if (res.error) { console.error(res.error); return {ok:false, error: res.error.message}; }
+    if (res.error) {
+      console.error(res.error);
+      // A refusal is a real error and must surface. A failure to reach the
+      // server at all is just weather — keep the edit and send it later.
+      if (looksOffline(res.error)) {
+        queuePending(id, data);
+        lsWrite(LS_MIRROR, Object.assign(lsRead(LS_MIRROR, {}), pendingMap()));
+        setOffline(true);
+        return {ok:true, queued:true};
+      }
+      return {ok:false, error: res.error.message};
+    }
+    setOffline(false);
     return {ok:true};
   }
 
@@ -2106,6 +2165,7 @@ var Store = (function(){
   }
 
   return { listTrips: listTrips, saveTrip: saveTrip, addJournalEntry: addJournalEntry,
+           flushPending: flushPending, pendingCount: pendingCount,
            listJournal: listJournal, seedMissing: seedMissing, reseedAll: reseedAll, isCloud: cloud,
            myProfile: myProfile, setUsername: setUsername,
            signIn: signIn, signUp: signUp, setPassword: setPassword,
@@ -2505,6 +2565,62 @@ function renderLogistics(t){
     }).join('') + '</table>';
   }
   el.innerHTML = html || '<div class="section-note">No logistics recorded on this trip yet.</div>';
+}
+
+/* ---------- offline ---------- */
+var isOffline = false;
+
+/* Distinguish "couldn't reach the server" from "the server said no". The first
+   is temporary and the edit should survive; the second must be shown. */
+function looksOffline(err){
+  if (!navigator.onLine) return true;
+  var m = ((err && (err.message || err.msg)) || '').toLowerCase();
+  return m.indexOf('failed to fetch') !== -1 ||
+         m.indexOf('networkerror') !== -1 ||
+         m.indexOf('network request failed') !== -1 ||
+         m.indexOf('load failed') !== -1 ||
+         m.indexOf('timeout') !== -1;
+}
+
+function setOffline(v){
+  if (isOffline === v) return;
+  isOffline = v;
+  renderOfflineBar();
+}
+
+function renderOfflineBar(){
+  var bar = document.getElementById('offline-bar');
+  if (!bar) return;
+  var n = Store.pendingCount ? Store.pendingCount() : 0;
+  if (!isOffline && !n){ bar.hidden = true; return; }
+  bar.hidden = false;
+  bar.textContent = isOffline
+    ? 'Offline — showing your last saved copy.' + (n ? ' ' + n + ' change' + (n===1?'':'s') + ' waiting to sync.' : ' Changes are kept here and sent when you\'re back.')
+    : n + ' change' + (n===1?'':'s') + ' waiting to sync…';
+}
+
+async function syncNow(){
+  if (!Store.flushPending) return;
+  var r = await Store.flushPending();
+  if (r.flushed){
+    await renderTripsAll();
+    toast(r.flushed + ' change' + (r.flushed===1?'':'s') + ' synced', 'ok');
+  }
+  setOffline(r.failed > 0 && !navigator.onLine);
+  renderOfflineBar();
+}
+
+window.addEventListener('online', function(){ setOffline(false); syncNow(); });
+window.addEventListener('offline', function(){ setOffline(true); });
+
+/* The page itself has to survive a dead connection, which means a service
+   worker — otherwise opening the app on a plane fetches nothing at all. */
+function registerServiceWorker(){
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol === 'file:') return;   // unsupported, and not needed there
+  navigator.serviceWorker.register('sw.js').catch(function(e){
+    console.warn('Service worker did not register:', e);
+  });
 }
 
 /* ---------- booking parser ----------
@@ -3095,7 +3211,12 @@ document.addEventListener('DOMContentLoaded', function() {
   var note = document.getElementById('footer-store-note');
   if (note) note.textContent = sb ? 'Trips are private to your signed-in account.' : 'Trips are saved in this browser. Configure Supabase (see SUPABASE_URL at the top of the script) to sync them across devices.';
 
+  registerServiceWorker();
   initAuth();
+  setTimeout(function(){
+    renderOfflineBar();
+    if (navigator.onLine) syncNow();
+  }, 1200);
 });
 </script>
 

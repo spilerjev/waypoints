@@ -42,6 +42,17 @@ A trip is imported the **first time** the app sees its `id`. After that your edi
 
 You can also add trips through the UI (**+ Log a trip**) — those get the logbook fields, and you can fill in the planner fields by editing the file or the database.
 
+## Works without a connection
+
+A trip planner is needed most where there is no signal — a long-haul flight, an airport, foreign mobile data. A service worker caches the page, the fonts and the Supabase library, so opening the app offline gives you the app rather than a browser error. Add it to your home screen (Share → Add to Home Screen on iOS, Install on Android) and it opens like an app.
+
+Trip data has two halves:
+
+- **Reading.** Every successful load from Supabase is mirrored into this browser. When the network is unreachable, that mirror is served instead — otherwise a failed read returns nothing, and you open the app mid-flight to be told you have no trips.
+- **Writing.** An edit that can't reach the server isn't lost or rolled back. It's kept locally, a banner tells you how many changes are waiting, and they're sent automatically when the connection returns. A server *refusal* is different — that still surfaces as an error, because it means something is actually wrong rather than merely unreachable.
+
+Supabase requests are never cached. A stale cached reply carrying auth tokens or old rows would be worse than a clean failure, and the failure is exactly what tells the app to go offline.
+
 ## Adding a booking without typing it
 
 **Bookings → + Paste a booking.** Paste the confirmation email or page and the app pulls out the category, title, dates, times, price, reference, and — for flights — every leg with its route and times. You then correct anything wrong on a review screen before it saves.
