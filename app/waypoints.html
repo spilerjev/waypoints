@@ -350,6 +350,73 @@ footer{text-align:center;padding:1.5rem;font-family:'Karla',sans-serif;font-size
   .trip-cost{text-align:left;margin-left:3.7rem}
 }
 
+/* ── PHONE ──
+   The app was laid out for a desktop and then opened on a phone, where the
+   modals ran off the side, the tab strips wrapped into three lines and the
+   filter bar took a full screen before you saw a single destination. */
+@media(max-width:640px){
+  .hdr{padding:1.4rem 1rem 1.1rem}
+  .hdr h1{font-size:1.8rem}
+  .hdr-sub{font-size:.76rem}
+  .top-tabs{gap:.4rem}
+  .top-tab{flex:1;justify-content:center;padding:.5rem .6rem}
+
+  /* Full-height sheets that slide up, rather than centred desktop dialogs. */
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal{max-width:100%;width:100%;max-height:94vh;border-radius:16px 16px 0 0;margin:0}
+  .modal-body{padding:1.1rem}
+  .thd{padding:1.1rem 1.1rem .9rem;position:sticky;top:0;background:var(--s1);z-index:3}
+  .modal-title{font-size:1.25rem}
+
+  /* Tab strips scroll sideways instead of stacking three rows deep. */
+  .mtabs{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:.15rem;padding:0 1.1rem !important}
+  .mtabs::-webkit-scrollbar{display:none}
+  .mtab{flex:0 0 auto;white-space:nowrap}
+
+  .filter-bar{padding:0 .8rem}
+  .filter-card{padding:.9rem}
+  .fb-row{gap:.5rem}
+  .grid{grid-template-columns:1fr;padding:0 .8rem;gap:.7rem}
+  .map-wrap{padding:0 .8rem}
+
+  /* Timed rows: the clock column shrinks, notes keep their own line. */
+  .itin-day{gap:.6rem;padding:.75rem 0}
+  .itin-date{width:2.5rem}
+  .itin-dnum{font-size:1.25rem}
+  .itin-title{font-size:.94rem}
+  .itin-t{width:2.7rem;font-size:.74rem}
+  .itin-items li.timed{gap:.5rem}
+
+  /* Bookings: price under the title rather than squeezed into a third column. */
+  .bk-row{flex-wrap:wrap}
+  .bk-price{text-align:left;margin-left:2.1rem;display:flex;align-items:baseline;gap:.4rem}
+  .bk-price small{margin-top:0}
+
+  .leg-chip{min-width:calc(50% - .25rem)}
+  .plan-hero{gap:.9rem;padding:.9rem 1rem}
+  .plan-count{font-size:1.7rem}
+  .hero-stats{gap:1.3rem;padding:1.1rem 0 .3rem}
+  .stat-val{font-size:1.5rem}
+  .cost-row{flex-wrap:wrap;gap:.3rem}
+  .cost-figs{text-align:left}
+  .tr-tbl td,.fl-tbl td{padding:.4rem .3rem}
+  .fl-tbl{font-size:.66rem}
+  .roster-add input{width:100%}
+  .toast{left:.8rem;right:.8rem;transform:none;max-width:none}
+
+  /* Anything that must stay wide gets its own scroller, so the page never does. */
+  .cmp-tbl,.fl-tbl{min-width:34rem}
+  #td-logistics{overflow-x:auto}
+}
+
+/* Taps need room; 44px is the usual floor. */
+@media(hover:none){
+  .pill{padding:.5rem 1rem}
+  .bk-tick{width:1.6rem;height:1.6rem}
+  .todo-row button{width:1.35rem;height:1.35rem}
+  .mtab{padding-top:.6rem;padding-bottom:.6rem}
+}
+
 /* ── TRIP PLANNER: COUNTDOWN + LEG STRIP ── */
 .plan-hero{background:var(--s3);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap}
 .plan-count{font-family:'Spectral',serif;font-weight:600;font-size:2.1rem;line-height:1;font-variant-numeric:tabular-nums}
@@ -442,6 +509,16 @@ footer{text-align:center;padding:1.5rem;font-family:'Karla',sans-serif;font-size
 .roster-msg.err{color:var(--bad)}
 .roster-msg.ok{color:var(--good)}
 .journal-author{color:var(--muted);font-weight:400}
+/* ── TIMED ITINERARY ROWS ── */
+.itin-items li.timed{display:flex;gap:.7rem;padding-left:0;align-items:baseline}
+.itin-items li.timed::before{content:none}
+.itin-t{flex-shrink:0;width:3.1rem;font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent);font-size:.78rem}
+.itin-d{flex:1;min-width:0;color:var(--text)}
+.itin-n{display:block;color:var(--faint);font-style:normal;font-size:.72rem;margin-top:.1rem}
+.itin-items li.now{background:color-mix(in srgb, var(--accent) 14%, transparent);border-radius:7px;padding:.3rem .5rem;margin-left:-.5rem}
+.itin-items li.now .itin-t::after{content:' ←';color:var(--accent)}
+.itin-items li.past{opacity:.45}
+
 /* ── SAVE FEEDBACK ── */
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);z-index:400;background:var(--s2);border:1px solid var(--border2);border-radius:10px;padding:.75rem 1rem;box-shadow:var(--shadow);font-size:.82rem;line-height:1.45;display:flex;align-items:center;gap:.9rem;max-width:min(30rem,calc(100vw - 2rem))}
 .toast.err{border-color:var(--bad);background:color-mix(in srgb, var(--bad) 14%, var(--s2))}
@@ -2276,10 +2353,43 @@ function renderItinerary(t){
       '<div class="itin-main">' +
         '<div class="itin-title">' + esc(d.emoji) + ' ' + esc(d.title) +
           (d.date === today ? '<span class="itin-base">today</span>' : '') + '</div>' +
-        '<ul class="itin-items">' + (d.items || []).map(function(i){ return '<li>' + esc(i) + '</li>'; }).join('') + '</ul>' +
+        '<ul class="itin-items">' + renderItinItems(d) + '</ul>' +
       '</div>' +
     '</div>';
     return out;
+  }).join('');
+}
+
+/* Items are either plain strings or {t:'09:00', d:'…', n:'…'}. On the day itself
+   the row you're currently in is marked, so the plan points at now rather than
+   making you scan a column of times. */
+function renderItinItems(d){
+  var isToday = d.date === todayISO();
+  var now = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes();
+  var timed = (d.items || []).filter(function(i){ return i && typeof i === 'object' && i.t; });
+  var currentIdx = -1;
+  if (isToday && timed.length){
+    for (var k = 0; k < timed.length; k++){
+      var parts = String(timed[k].t).split(':');
+      var at = parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
+      if (at <= mins) currentIdx = k;
+    }
+  }
+  var seen = -1;
+  return (d.items || []).map(function(i){
+    if (typeof i === 'string') return '<li>' + esc(i) + '</li>';
+    if (i.t) seen++;
+    var cls = '';
+    if (isToday && i.t){
+      if (seen === currentIdx) cls = ' now';
+      else if (seen < currentIdx) cls = ' past';
+    }
+    return '<li class="timed' + cls + '">' +
+      '<span class="itin-t">' + esc(i.t || '') + '</span>' +
+      '<span class="itin-d">' + esc(i.d || '') +
+        (i.n ? '<em class="itin-n">' + esc(i.n) + '</em>' : '') +
+      '</span></li>';
   }).join('');
 }
 
