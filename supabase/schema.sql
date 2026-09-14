@@ -352,3 +352,31 @@ grant execute on function
   public.remove_trip_member(text, uuid),
   public.trip_journal(text)
   to authenticated;
+
+-- Resolve a username to the email Supabase needs for sign-in.
+--
+-- It takes the password and verifies it before returning anything. Without that
+-- check this function would be an open directory turning usernames into email
+-- addresses, which is worse than not supporting username login at all. A wrong
+-- password and an unknown username both return null, so it cannot be used to
+-- discover which usernames exist either.
+create or replace function public.email_for_login(p_identifier text, p_password text)
+returns text language plpgsql security definer set search_path = public, extensions as $$
+declare v_email text; v_hash text;
+begin
+  select u.email, u.encrypted_password into v_email, v_hash
+  from auth.users u
+  where lower(u.email) = lower(trim(p_identifier))
+     or u.id = (select id from profiles where username = lower(trim(p_identifier)))
+  limit 1;
+
+  if v_email is null or v_hash is null or v_hash = '' then
+    return null;
+  end if;
+  if v_hash <> crypt(p_password, v_hash) then
+    return null;
+  end if;
+  return v_email;
+end $$;
+
+grant execute on function public.email_for_login(text, text) to anon, authenticated;
