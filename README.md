@@ -42,6 +42,14 @@ A trip is imported the **first time** the app sees its `id`. After that your edi
 
 You can also add trips through the UI (**+ Log a trip**) — those get the logbook fields, and you can fill in the planner fields by editing the file or the database.
 
+## Adding a booking without typing it
+
+**Bookings → + Paste a booking.** Paste the confirmation email or page and the app pulls out the category, title, dates, times, price, reference, and — for flights — every leg with its route and times. You then correct anything wrong on a review screen before it saves.
+
+There is no AI and no network call. Confirmations are highly patterned, so it is regular expressions doing the work: flight codes (`TK1868`), airport pairs (`VCE → IST`), reference codes, times, and money in EUR, USD, SGD, IDR, GBP, CHF and AUD. A non-EUR total is converted so the trip's budget stays in one currency, with the original kept in the notes.
+
+Two things follow from that. Your booking documents never leave the browser — no key, no server, no vendor seeing your PNRs. And it guesses rather than understands: the review screen is not a formality, it is where you catch the guess it got wrong. Conversion rates live in `CUR_TO_EUR` near the parser and drift over time; edit them there.
+
 ## Accounts and sharing a trip
 
 Without Supabase, trips live in one browser and only you see them. Connect it and you get accounts, syncing, and trips shared with the people you're actually travelling with.

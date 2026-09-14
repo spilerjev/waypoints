@@ -13,6 +13,8 @@
 .hidden{display:none !important}
 .auth-card{max-width:420px;margin:0 auto;background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:1.8rem;box-shadow:var(--shadow);text-align:center}
 .auth-card .field{text-align:left}
+.paste-chips{display:flex;gap:.4rem;flex-wrap:wrap}
+.paste-chips span{background:var(--s3);border:1px solid var(--border);border-radius:999px;padding:.25rem .7rem;font-size:.76rem}
 .auth-wide{width:100%;justify-content:center;margin-top:.2rem}
 .auth-alt{margin-top:.9rem;font-size:.8rem}
 .auth-alt a{color:var(--sky);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
@@ -814,6 +816,7 @@ footer{text-align:center;padding:1.5rem;font-family:'Karla',sans-serif;font-size
         <div id="td-itinerary"></div>
       </div>
       <div class="mpanel" data-tpanel="bookings">
+        <button class="add-trip-btn" style="margin:0 0 1rem" onclick="openPasteBooking()">+ Paste a booking</button>
         <div id="td-bookings"></div>
         <div id="td-todos"></div>
       </div>
@@ -842,6 +845,39 @@ footer{text-align:center;padding:1.5rem;font-family:'Karla',sans-serif;font-size
 </div>
 
 <!-- Add trip modal -->
+<!-- Paste a booking -->
+<div class="modal-overlay hidden" id="paste-overlay" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal" style="max-width:620px">
+    <div class="thd">
+      <div>
+        <div class="modal-title">Paste a booking</div>
+        <div class="section-note" style="margin-top:.3rem">Copy the confirmation email or page and paste it here. Nothing is sent anywhere — it's read in your browser.</div>
+      </div>
+      <button class="thd-close" onclick="document.getElementById('paste-overlay').classList.add('hidden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="paste-step1">
+        <div class="field">
+          <label>Confirmation text</label>
+          <textarea id="paste-text" style="min-height:11rem" placeholder="Paste the whole thing — flight numbers, dates, prices, reference codes. Extra text is fine."></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn" onclick="document.getElementById('paste-overlay').classList.add('hidden')">Cancel</button>
+          <button class="btn primary" id="paste-read">Read it</button>
+        </div>
+      </div>
+      <div id="paste-step2" class="hidden">
+        <div class="section-note" style="margin-bottom:1rem">Here's what it found. Fix anything wrong before saving — it guesses, it doesn't know.</div>
+        <div id="paste-review"></div>
+        <div class="form-actions">
+          <button class="btn" id="paste-back">Back</button>
+          <button class="btn primary" id="paste-save">Add to trip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay hidden" id="add-overlay" onclick="if(event.target===this)this.classList.add('hidden')">
   <div class="modal">
     <div class="thd">
@@ -2470,6 +2506,293 @@ function renderLogistics(t){
   }
   el.innerHTML = html || '<div class="section-note">No logistics recorded on this trip yet.</div>';
 }
+
+/* ---------- booking parser ----------
+   Pulls the structured bits out of a pasted confirmation. No AI, no network,
+   nothing leaves the browser — confirmations are highly patterned, and what it
+   misses you fix on the review screen before anything is saved. */
+
+var CUR_SYMBOLS = {'€':'EUR','EUR':'EUR','$':'USD','USD':'USD','S$':'SGD','SGD':'SGD',
+                   'Rp':'IDR','IDR':'IDR','£':'GBP','GBP':'GBP','CHF':'CHF','A$':'AUD','AUD':'AUD'};
+
+/* Rough, and deliberately editable — they drift. Used only to pre-fill the EUR
+   box so you aren't doing mental arithmetic; the original is always kept. */
+var CUR_TO_EUR = { EUR:1, USD:0.92, SGD:0.68, IDR:0.000057, GBP:1.17, CHF:1.05, AUD:0.60 };
+
+var MONTHS = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,sept:8,oct:9,nov:10,dec:11};
+
+function pbNum(raw){
+  // 3,707,283 · 1.234,56 · 499.00 — decide which separator is the decimal one.
+  var t = String(raw).trim();
+  var lastDot = t.lastIndexOf('.'), lastComma = t.lastIndexOf(',');
+  if (lastDot > -1 && lastComma > -1){
+    if (lastComma > lastDot) t = t.replace(/\./g,'').replace(',','.');
+    else t = t.replace(/,/g,'');
+  } else if (lastComma > -1){
+    // a lone comma is a decimal point only with exactly two digits after it
+    t = (/,\d{2}$/.test(t)) ? t.replace(',','.') : t.replace(/,/g,'');
+  } else if (lastDot > -1 && !/\.\d{1,2}$/.test(t)){
+    t = t.replace(/\./g,'');
+  }
+  var n = parseFloat(t);
+  return isNaN(n) ? null : n;
+}
+
+function pbMoney(text){
+  var out = [], m;
+  var pre = /(S\$|A\$|Rp|€|£|\$|EUR|USD|SGD|IDR|GBP|CHF|AUD)\s?([\d][\d.,]*)/gi;
+  while ((m = pre.exec(text))){
+    var cur = CUR_SYMBOLS[m[1]] || CUR_SYMBOLS[m[1].toUpperCase()] || m[1].toUpperCase();
+    var v = pbNum(m[2]);
+    if (v !== null) out.push({cur:cur, amount:v});
+  }
+  var post = /([\d][\d.,]*)\s?(EUR|USD|SGD|IDR|GBP|CHF|AUD|€|£)/gi;
+  while ((m = post.exec(text))){
+    var c2 = CUR_SYMBOLS[m[2]] || CUR_SYMBOLS[m[2].toUpperCase()] || m[2].toUpperCase();
+    var v2 = pbNum(m[1]);
+    if (v2 !== null && !out.some(function(x){ return x.amount === v2; })) out.push({cur:c2, amount:v2});
+  }
+  return out;
+}
+
+function pbDates(text, defaultYear){
+  var found = [], m;
+  var iso = /\b(20\d{2})-(\d{2})-(\d{2})\b/g;
+  while ((m = iso.exec(text))) found.push({iso: m[0], at: m.index});
+  // 17 September 2026 · 17 Sep · Sept 17, 2026
+  var dmy = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec)[a-z]*\.?\s*(20\d{2})?/gi;
+  while ((m = dmy.exec(text))){
+    var mo = MONTHS[m[2].toLowerCase()];
+    if (mo === undefined) continue;
+    var y = m[3] || defaultYear;
+    found.push({iso: y + '-' + pad2(mo+1) + '-' + pad2(parseInt(m[1],10)), at: m.index});
+  }
+  var mdy = /\b(jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})(?!\d)(?:st|nd|rd|th)?(?:,)?\s*(20\d{2})?/gi;
+  while ((m = mdy.exec(text))){
+    var mo2 = MONTHS[m[1].toLowerCase()];
+    if (mo2 === undefined) continue;
+    var y2 = m[3] || defaultYear;
+    var isoS = y2 + '-' + pad2(mo2+1) + '-' + pad2(parseInt(m[2],10));
+    if (!found.some(function(f){ return f.iso === isoS; })) found.push({iso: isoS, at: m.index});
+  }
+  var dn = /\b(\d{1,2})[\/.](\d{1,2})[\/.](20\d{2})\b/g;
+  while ((m = dn.exec(text))) found.push({iso: m[3] + '-' + pad2(+m[2]) + '-' + pad2(+m[1]), at: m.index});
+  found.sort(function(a,b){ return a.at - b.at; });
+  var seen = {}, uniq = [];
+  found.forEach(function(f){ if (!seen[f.iso]){ seen[f.iso]=1; uniq.push(f.iso); } });
+  return uniq;
+}
+
+function pbTimes(text){
+  var out = [], m, re = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g;
+  while ((m = re.exec(text))) out.push(pad2(+m[1]) + ':' + m[2]);
+  return out;
+}
+
+function pbRef(text){
+  // Prefer a reference that announces itself; fall back to a bare PNR shape.
+  var labelled = /(?:booking(?:\s*(?:id|ref(?:erence)?|number|code))?|confirmation(?:\s*(?:number|code|no\.?))?|reservation(?:\s*(?:number|code))?|order(?:\s*(?:number|id|ref(?:erence)?))?|pnr|record locator)\s*[:#]?\s*([A-Z0-9]{5,12})\b/i;
+  var m = text.match(labelled);
+  if (m) return m[1].toUpperCase();
+  var pnr = text.match(/\b(?=[A-Z0-9]{6}\b)(?=.*[A-Z])[A-Z0-9]{6}\b/);
+  return pnr ? pnr[0] : '';
+}
+
+function pbFlights(text, dates){
+  var out = [], m;
+  var re = /\b([A-Z]{2}\d{1,4})\b/g;
+  var codes = [];
+  while ((m = re.exec(text))) if (codes.indexOf(m[1]) === -1) codes.push(m[1]);
+  var pairRe = /\b([A-Z]{3})\s*(?:→|->|-|—|–|to|>)\s*([A-Z]{3})\b/g;
+  var pairs = [];
+  while ((m = pairRe.exec(text))) pairs.push({from:m[1], to:m[2]});
+  var times = pbTimes(text);
+  codes.forEach(function(code, i){
+    out.push({
+      code: code,
+      from: pairs[i] ? pairs[i].from : '',
+      to:   pairs[i] ? pairs[i].to   : '',
+      dep:  times[i*2]     || '',
+      arr:  times[i*2 + 1] || '',
+      date: dates[i] || dates[0] || ''
+    });
+  });
+  return out;
+}
+
+function pbCategory(text){
+  var t = text.toLowerCase();
+  var score = {flights:0, accommodation:0, transport:0, activities:0, other:0};
+  function hits(re, cat, weight){ var m = t.match(re); if (m) score[cat] += m.length * (weight || 1); }
+
+  hits(/\b(flights?|airlines?|boarding|pnr|e-?ticket|departure|arrival|baggage|carry-?on|gate|terminal|seat)\b/g, 'flights');
+  hits(/\b(check-?in|check-?out|hotels?|villas?|resorts?|guesthouse|apartment|nights?|booking\.com|airbnb|room|breakfast included)\b/g, 'accommodation');
+  hits(/\b(transfers?|shuttle|bus|train|car rental|scooter|taxi|drivers?)\b/g, 'transport', 2);
+  hits(/\b(pick-?up|drop-?off)\b/g, 'transport');   // incidental — tours have pickups too
+  hits(/\b(tours?|excursion|lessons?|trek|dive|snorkel|safari|cruise)\b/g, 'activities', 2);
+  hits(/\b(tickets?|entry|activity|museum|shows?|class)\b/g, 'activities');
+
+  // A flight code beside an airport pair is stronger evidence than any keyword.
+  if (/\b[a-z]{2}\d{1,4}\b/.test(t) && /\b[a-z]{3}\s*(?:→|->|-|—|–|to|>)\s*[a-z]{3}\b/.test(t)) score.flights += 4;
+  else if (/\b[a-z]{2}\d{1,4}\b/.test(t) && /\b(airlines?|flights?)\b/.test(t)) score.flights += 3;
+
+  var best = 'other', bestN = 0;
+  Object.keys(score).forEach(function(k){ if (score[k] > bestN){ bestN = score[k]; best = k; } });
+  return bestN ? best : 'other';
+}
+
+function pbTitle(text, cat){
+  var lines = text.split(/\n+/).map(function(l){ return l.trim(); }).filter(Boolean);
+  var cands = [];
+  for (var i = 0; i < lines.length && cands.length < 6; i++){
+    var l = lines[i];
+    if (l.length < 3 || l.length > 80) continue;
+    if (/^(booking|confirmation|reservation|order|your|thank|dear|hello|hi\b|total|price|amount|date|time|passenger|guests?|check-?in|check-?out)/i.test(l)) continue;
+    if (/^[\d\s.,:€$£-]+$/.test(l)) continue;
+    cands.push(l);
+  }
+  if (!cands.length) return CAT_LABELS[cat] || 'Booking';
+  // A vendor name is usually one word on its own line; the thing you actually
+  // booked has more words. Prefer the most descriptive of the early lines.
+  var best = cands[0], bestWords = cands[0].split(/\s+/).length;
+  cands.forEach(function(c){
+    var w = c.split(/\s+/).length;
+    if (w > bestWords){ best = c; bestWords = w; }
+  });
+  return best;
+}
+
+/* The whole parse. Returns a draft for the review screen — never saves. */
+function parseBooking(text, tripYear){
+  var year = tripYear || String(new Date().getFullYear());
+  var dates  = pbDates(text, year);
+  var monies = pbMoney(text);
+  var cat    = pbCategory(text);
+  // The largest figure is almost always the total rather than a tax or a nightly rate.
+  var best = null;
+  monies.forEach(function(x){
+    var eur = x.amount * (CUR_TO_EUR[x.cur] || 1);
+    if (!best || eur > best.eur) best = {cur:x.cur, amount:x.amount, eur:eur};
+  });
+  return {
+    cat: cat,
+    title: pbTitle(text, cat),
+    ref: pbRef(text),
+    dates: dates,
+    times: pbTimes(text),
+    money: monies,
+    price: best ? Math.round(best.eur * 100) / 100 : null,
+    original: best && best.cur !== 'EUR' ? (best.cur + ' ' + best.amount.toLocaleString('en-US')) : '',
+    flights: cat === 'flights' ? pbFlights(text, dates) : [],
+    raw: text.trim()
+  };
+}
+
+/* ---------- paste a booking: review and save ---------- */
+var pasteDraft = null;
+
+function openPasteBooking(){
+  if (!currentTripId) return;
+  document.getElementById('paste-text').value = '';
+  document.getElementById('paste-step1').classList.remove('hidden');
+  document.getElementById('paste-step2').classList.add('hidden');
+  document.getElementById('paste-overlay').classList.remove('hidden');
+  setTimeout(function(){ document.getElementById('paste-text').focus(); }, 50);
+}
+
+function pasteField(id, label, value, hint, type){
+  return '<div class="field"><label>' + esc(label) +
+    (hint ? ' <span style="text-transform:none;letter-spacing:0;color:var(--faint)">— ' + esc(hint) + '</span>' : '') +
+    '</label><input type="' + (type || 'text') + '" id="' + id + '" value="' + esc(value === null || value === undefined ? '' : value) + '"></div>';
+}
+
+function renderPasteReview(d){
+  var t = trips[currentTripId];
+  var cats = Object.keys(CAT_LABELS).map(function(c){
+    return '<option value="' + c + '"' + (c === d.cat ? ' selected' : '') + '>' + esc(CAT_LABELS[c]) + '</option>';
+  }).join('');
+
+  var html = '<div class="field"><label>Category</label><select id="pz-cat">' + cats + '</select></div>';
+  html += pasteField('pz-title', 'Title', d.title);
+  html += '<div class="field-row">' +
+          pasteField('pz-price', 'Price in EUR', d.price, d.original ? 'from ' + d.original : 'total for everyone') +
+          pasteField('pz-ref', 'Reference', d.ref) + '</div>';
+
+  if (d.dates.length){
+    html += '<div class="field"><label>Dates found</label><div class="paste-chips">' +
+      d.dates.map(function(x){ return '<span>' + esc(fmtDate(x)) + '</span>'; }).join('') + '</div></div>';
+  }
+  if (d.flights.length){
+    html += '<div class="plan-sub" style="margin-top:1.2rem">Flights found — ' + d.flights.length + '</div><table class="fl-tbl">' +
+      d.flights.map(function(f){
+        return '<tr><td>' + esc(f.code) + '</td><td class="fl-route">' + esc(f.from) + ' → ' + esc(f.to) +
+               '</td><td>' + esc(f.date ? fmtDate(f.date) : '—') + '</td><td>' + esc(f.dep) + ' → ' + esc(f.arr) + '</td></tr>';
+      }).join('') + '</table>' +
+      '<label style="display:flex;gap:.5rem;align-items:center;margin-top:.7rem;font-size:.82rem;cursor:pointer">' +
+      '<input type="checkbox" id="pz-addflights" checked> Add these to the Logistics tab too</label>';
+  }
+  html += '<div class="field" style="margin-top:1.1rem"><label>Notes</label><textarea id="pz-detail" style="min-height:5rem">' +
+          esc(d.raw.length > 600 ? d.raw.slice(0, 600) + '…' : d.raw) + '</textarea></div>';
+  html += '<label style="display:flex;gap:.5rem;align-items:center;font-size:.82rem;cursor:pointer">' +
+          '<input type="checkbox" id="pz-paid" checked> Already paid — mark it done</label>';
+  document.getElementById('paste-review').innerHTML = html;
+}
+
+document.getElementById('paste-read').addEventListener('click', function(){
+  var text = document.getElementById('paste-text').value.trim();
+  if (!text){ toast('Paste the confirmation first', 'err'); return; }
+  var t = trips[currentTripId];
+  pasteDraft = parseBooking(text, (t && t.start) ? t.start.slice(0,4) : undefined);
+  renderPasteReview(pasteDraft);
+  document.getElementById('paste-step1').classList.add('hidden');
+  document.getElementById('paste-step2').classList.remove('hidden');
+});
+
+document.getElementById('paste-back').addEventListener('click', function(){
+  document.getElementById('paste-step2').classList.add('hidden');
+  document.getElementById('paste-step1').classList.remove('hidden');
+});
+
+document.getElementById('paste-save').addEventListener('click', async function(){
+  var t = trips[currentTripId];
+  if (!t || !pasteDraft) return;
+  var priceRaw = document.getElementById('pz-price').value.trim();
+  var price = priceRaw === '' ? null : parseFloat(priceRaw.replace(',', '.'));
+  if (price !== null && isNaN(price)){ toast('That price is not a number', 'err'); return; }
+
+  var ref = document.getElementById('pz-ref').value.trim();
+  var detail = document.getElementById('pz-detail').value.trim();
+  var booking = {
+    id: 'p' + Date.now().toString(36),
+    cat: document.getElementById('pz-cat').value,
+    status: document.getElementById('pz-paid').checked ? 'done' : 'todo',
+    title: document.getElementById('pz-title').value.trim() || 'Booking',
+    price: price,
+    detail: (ref ? 'Ref ' + ref + '. ' : '') +
+            (pasteDraft.original ? 'Charged ' + pasteDraft.original + '. ' : '') + detail
+  };
+
+  t.bookings = t.bookings || [];
+  t.bookings.push(booking);
+
+  var addFlights = document.getElementById('pz-addflights');
+  if (addFlights && addFlights.checked && pasteDraft.flights.length){
+    t.flights = t.flights || [];
+    pasteDraft.flights.forEach(function(f){
+      t.flights.push({ code:f.code, date:f.date, from:f.from, to:f.to, dep:f.dep, arr:f.arr, pnr: ref || '' });
+    });
+  }
+
+  var res = await Store.saveTrip(currentTripId, t);
+  if (!res.ok){
+    t.bookings.pop();                       // don't leave a booking the store never took
+    toast('Not saved — ' + res.error, 'err');
+    return;
+  }
+  document.getElementById('paste-overlay').classList.add('hidden');
+  renderBookings(t); renderPlanHero(t); renderLogistics(t); renderLog();
+  toast('Added: ' + booking.title, 'ok');
+});
 
 /* ---------- save feedback ---------- */
 var toastTimer = null;
