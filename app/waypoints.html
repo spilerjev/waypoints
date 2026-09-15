@@ -2355,14 +2355,19 @@ function tripPhase(t){
   return {val:d, lbl:d === 1 ? 'Day to go' : 'Days to go'};
 }
 
+/* "Booked" and "paid for" are different states. A hotel can be confirmed months
+   ahead and charged on arrival, and counting it as spent overstates what has
+   actually left your account — and understates what you still need available. */
 function bookingStats(t){
   var bks = t.bookings || [];
-  var done = 0, open = 0, paid = 0;
+  var done = 0, open = 0, paid = 0, owed = 0;
   bks.forEach(function(b){
-    if (b.status === 'done') { done++; if (typeof b.price === 'number') paid += b.price; }
-    else open++;
+    if (b.status !== 'done') { open++; return; }
+    done++;
+    if (typeof b.price !== 'number') return;
+    if (b.paid === false) owed += b.price; else paid += b.price;
   });
-  return {done:done, open:open, total:bks.length, paid:paid};
+  return {done:done, open:open, total:bks.length, paid:paid, owed:owed};
 }
 
 function renderPlanHero(t){
@@ -2387,7 +2392,8 @@ function renderPlanHero(t){
     '</div>';
   if (bs.total) {
     html += '<div class="plan-prog">' +
-      '<div class="section-note">' + bs.done + ' of ' + bs.total + ' bookings done · ' + fmtEUR(bs.paid) + ' paid</div>' +
+      '<div class="section-note">' + bs.done + ' of ' + bs.total + ' bookings done · ' + fmtEUR(bs.paid) + ' paid' +
+        (bs.owed ? ' · ' + fmtEUR(bs.owed) + ' still to pay' : '') + '</div>' +
       '<div class="plan-prog-bar"><span style="width:' + pct + '%"></span></div>' +
     '</div>';
   }
@@ -2500,7 +2506,8 @@ function renderBookings(t){
   if (!bks.length) { el.innerHTML = '<div class="section-note">No bookings tracked on this trip yet.</div>'; return; }
   var bs = bookingStats(t);
   var html = '<div class="section-note" style="margin-bottom:.9rem">' +
-    bs.done + ' done · ' + bs.open + ' still open · ' + fmtEUR(bs.paid) + ' paid so far. ' +
+    bs.done + ' done · ' + bs.open + ' still open · ' + fmtEUR(bs.paid) + ' paid' +
+    (bs.owed ? ', ' + fmtEUR(bs.owed) + ' booked but not yet charged' : '') + '. ' +
     'Tap a box to cycle it: open → done → on hold.</div>';
   var lastCat = null;
   bks.forEach(function(b){
@@ -2516,7 +2523,7 @@ function renderBookings(t){
       '<div class="bk-main"><div class="bk-title">' + esc(b.title) + '</div>' +
         (detail ? '<div class="bk-detail">' + detail + '</div>' : '') + '</div>' +
       '<div class="bk-price">' + (typeof b.price === 'number' ? fmtEUR(b.price) : '—') +
-        '<small>' + (b.status === 'done' ? 'paid' : b.status === 'hold' ? 'on hold' : 'to book') + '</small></div>' +
+        '<small>' + (b.status === 'done' ? (b.paid === false ? 'not charged' : 'paid') : b.status === 'hold' ? 'on hold' : 'to book') + '</small></div>' +
     '</div>';
   });
   el.innerHTML = html;
